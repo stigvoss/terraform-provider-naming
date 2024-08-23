@@ -23,8 +23,6 @@ func TestExampleFunction_Known(t *testing.T) {
 					value = provider::naming::format("func", "orders", {
 						template = "{{.resource}}-{{.system}}-{{.resourceName}}-{{.environment}}-{{.region}}-{{.discriminator}}",
 						args = {
-							"resource" = "func"
-							"resourceName" = "orders"
 							"system" = "lis"
 							"environment" = "dev"
 							"region" = "weu"

@@ -69,6 +69,9 @@ func (r FormatFunction) Run(ctx context.Context, req function.RunRequest, resp *
 		return
 	}
 
+	config.Args["resource"] = resource
+	config.Args["resourceName"] = resourceName
+
 	tmpl, err := template.New("template").Parse(config.Template)
 
 	if err != nil {
