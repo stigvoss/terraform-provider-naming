@@ -5,7 +5,6 @@ package provider
 
 import (
 	"context"
-	"net/http"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/function"
@@ -16,31 +15,31 @@ import (
 )
 
 // Ensure ScaffoldingProvider satisfies various provider interfaces.
-var _ provider.Provider = &ScaffoldingProvider{}
-var _ provider.ProviderWithFunctions = &ScaffoldingProvider{}
+var _ provider.Provider = &NamingProvider{}
+var _ provider.ProviderWithFunctions = &NamingProvider{}
 
-// ScaffoldingProvider defines the provider implementation.
-type ScaffoldingProvider struct {
+// NamingProvider defines the provider implementation.
+type NamingProvider struct {
 	// version is set to the provider version on release, "dev" when the
 	// provider is built and ran locally, and "test" when running acceptance
 	// testing.
 	version string
 }
 
-// ScaffoldingProviderModel describes the provider data model.
-type ScaffoldingProviderModel struct {
-	Endpoint types.String `tfsdk:"endpoint"`
+// NamingProviderModel describes the provider data model.
+type NamingProviderModel struct {
+	Format types.String `tfsdk:"format"`
 }
 
-func (p *ScaffoldingProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
-	resp.TypeName = "scaffolding"
+func (p *NamingProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
+	resp.TypeName = "naming"
 	resp.Version = p.version
 }
 
-func (p *ScaffoldingProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
+func (p *NamingProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
-			"endpoint": schema.StringAttribute{
+			"format": schema.StringAttribute{
 				MarkdownDescription: "Example provider attribute",
 				Optional:            true,
 			},
@@ -48,45 +47,33 @@ func (p *ScaffoldingProvider) Schema(ctx context.Context, req provider.SchemaReq
 	}
 }
 
-func (p *ScaffoldingProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
-	var data ScaffoldingProviderModel
+func (p *NamingProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
+	var data NamingProviderModel
 
 	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
 
 	if resp.Diagnostics.HasError() {
 		return
 	}
-
-	// Configuration values are now available.
-	// if data.Endpoint.IsNull() { /* ... */ }
-
-	// Example client configuration for data sources and resources
-	client := http.DefaultClient
-	resp.DataSourceData = client
-	resp.ResourceData = client
 }
 
-func (p *ScaffoldingProvider) Resources(ctx context.Context) []func() resource.Resource {
-	return []func() resource.Resource{
-		NewExampleResource,
-	}
+func (p *NamingProvider) Resources(ctx context.Context) []func() resource.Resource {
+	return []func() resource.Resource{}
 }
 
-func (p *ScaffoldingProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
-	return []func() datasource.DataSource{
-		NewExampleDataSource,
-	}
+func (p *NamingProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
+	return []func() datasource.DataSource{}
 }
 
-func (p *ScaffoldingProvider) Functions(ctx context.Context) []func() function.Function {
+func (p *NamingProvider) Functions(ctx context.Context) []func() function.Function {
 	return []func() function.Function{
-		NewExampleFunction,
+		NewFormatFunction,
 	}
 }
 
 func New(version string) func() provider.Provider {
 	return func() provider.Provider {
-		return &ScaffoldingProvider{
+		return &NamingProvider{
 			version: version,
 		}
 	}
