@@ -19,8 +19,8 @@ func TestExampleFunction_Known(t *testing.T) {
 		Steps: []resource.TestStep{
 			{
 				Config: `
-				output "test" {
-					value = provider::naming::format("func", "orders", {
+				locals {
+					default_naming = {
 						template = "{{.resource}}-{{.system}}-{{.resourceName}}-{{.environment}}-{{.region}}-{{.discriminator}}",
 						args = {
 							"system" = "lis"
@@ -28,7 +28,11 @@ func TestExampleFunction_Known(t *testing.T) {
 							"region" = "weu"
 							"discriminator" = "ugy4"
 						}
-					})
+					}
+				}
+
+				output "test" {
+					value = provider::naming::format("func", "orders", local.default_naming)
 				}
 				`,
 				Check: resource.ComposeAggregateTestCheckFunc(
