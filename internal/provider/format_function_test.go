@@ -20,7 +20,7 @@ func TestExampleFunction_Known(t *testing.T) {
 			{
 				Config: `
 				locals {
-					default_naming = {
+					naming_strategy = {
 						template = "{{.resource}}-{{.system}}-{{.resourceName}}-{{.environment}}-{{.region}}-{{.discriminator}}",
 						args = {
 							"system" = "lis"
@@ -32,7 +32,7 @@ func TestExampleFunction_Known(t *testing.T) {
 				}
 
 				output "test" {
-					value = provider::naming::format("func", "orders", local.default_naming)
+					value = provider::naming::format("func", "orders", local.naming_strategy)
 				}
 				`,
 				Check: resource.ComposeAggregateTestCheckFunc(

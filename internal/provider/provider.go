@@ -43,7 +43,9 @@ func (p *NamingProvider) Configure(ctx context.Context, req provider.ConfigureRe
 }
 
 func (p *NamingProvider) Resources(ctx context.Context) []func() resource.Resource {
-	return []func() resource.Resource{}
+	return []func() resource.Resource{
+		NewExampleResource,
+	}
 }
 
 func (p *NamingProvider) DataSources(ctx context.Context) []func() datasource.DataSource {

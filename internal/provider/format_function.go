@@ -41,7 +41,7 @@ func (r FormatFunction) Definition(_ context.Context, _ function.DefinitionReque
 				MarkdownDescription: "Resource name.",
 			},
 			function.ObjectParameter{
-				Name:                "config",
+				Name:                "strategy",
 				MarkdownDescription: "",
 				AttributeTypes: map[string]attr.Type{
 					"template": types.StringType,
@@ -58,28 +58,28 @@ func (r FormatFunction) Definition(_ context.Context, _ function.DefinitionReque
 func (r FormatFunction) Run(ctx context.Context, req function.RunRequest, resp *function.RunResponse) {
 	var resource string
 	var resourceName string
-	var config struct {
+	var strategy struct {
 		Template string            `tfsdk:"template"`
 		Args     map[string]string `tfsdk:"args"`
 	}
 
-	resp.Error = function.ConcatFuncErrors(req.Arguments.Get(ctx, &resource, &resourceName, &config))
+	resp.Error = function.ConcatFuncErrors(req.Arguments.Get(ctx, &resource, &resourceName, &strategy))
 
 	if resp.Error != nil {
 		return
 	}
 
-	config.Args["resource"] = resource
-	config.Args["resourceName"] = resourceName
+	strategy.Args["resource"] = resource
+	strategy.Args["resourceName"] = resourceName
 
-	tmpl, err := template.New("template").Parse(config.Template)
+	tmpl, err := template.New("template").Parse(strategy.Template)
 
 	if err != nil {
 		return
 	}
 
 	var result bytes.Buffer
-	err = tmpl.Execute(&result, config.Args)
+	err = tmpl.Execute(&result, strategy.Args)
 
 	if err != nil {
 		return
