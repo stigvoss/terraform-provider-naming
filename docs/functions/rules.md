@@ -16,13 +16,13 @@ Checks:
 - `components` overrides only tighten the scheme's constraints;
 - the `fit` component has room under `max_length`.
 
-| Field | Meaning |
+| Field | Description |
 |---|---|
-| `lowercase` | lowercase every part |
-| `remove` | regular expression of characters to delete |
-| `min_length`, `max_length` | length limits for the whole name |
-| `fit` | component shrunk to make the name fit `max_length` |
-| `components` | per-component constraints that tighten the scheme's |
+| `lowercase` | `true` lowercases every part of the name, for resources that only accept lowercase. |
+| `remove` | Regular expression. Every match is deleted from the name, including the template's own text, so `"[^a-z0-9]"` keeps only lowercase letters and digits. It should match single characters. |
+| `min_length`, `max_length` | Length limits for the finished name. A name outside them is an error. |
+| `fit` | The component that gets the room left under `max_length`. Needs `max_length`. |
+| `components` | Per-component `min_length`, `max_length` and `allowed` for this resource type. They can only be stricter than the scheme's, never looser. |
 
 ## Example Usage
 

@@ -25,11 +25,11 @@ func (f *formatFunction) Definition(_ context.Context, _ function.DefinitionRequ
 		Description: "Fills the scheme's template with its static values plus the variable parts in `variables`, " +
 			"checking each component against the scheme's constraints. Define the scheme once with `scheme` and pass it to every call.\n\n" +
 			"The optional third argument holds per-resource-type rules, as returned by `rules`. They are applied in this order:\n\n" +
-			"1. `lowercase`: lowercase every part.\n" +
-			"2. `remove`: delete characters matching a regular expression.\n" +
-			"3. `fit`: shrink one component so the name fits `max_length`. Its budget comes from the declared maximum lengths " +
-			"of the other components, so it is the same in every environment.\n" +
-			"4. `min_length`, `max_length`: check the length of the whole name.",
+			"1. `lowercase`: lowercase every part of the name.\n" +
+			"2. `remove`: delete every character matching a regular expression, template text included.\n" +
+			"3. `fit`: give one component the room left under `max_length`. The room is calculated from the declared " +
+			"maximum lengths of the other components, so it is the same in every environment.\n" +
+			"4. `min_length`, `max_length`: check the length of the finished name.",
 		Parameters: []function.Parameter{
 			function.ObjectParameter{
 				Name:               "config",

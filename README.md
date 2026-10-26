@@ -47,27 +47,28 @@ There are two places to set constraints:
 
 ### Component constraints
 
-Keyed by placeholder name, in `scheme`. A component with no constraints is unlimited. Static values are checked when the scheme is defined, variables on every `format` call.
+Keyed by placeholder name, in the third argument of `scheme`. A component with no constraints is unlimited. Static values are checked when the scheme is defined, variables on every `format` call.
 
-| Field | Meaning |
-|---|---|
-| `min_length`, `max_length` | length limits |
-| `allowed` | list of accepted values |
-| `pattern` | regular expression the value must match |
-| `overflow` | what to do with a value over its limit: `"error"` (default) or `"truncate"` |
-| `hash` | number of hash characters appended when truncating, so two long values don't collapse into one |
+| Field | Type | Description |
+|---|---|---|
+| `min_length` | number | Shortest accepted value. Shorter values are rejected. |
+| `max_length` | number | Longest accepted value. Longer values are rejected, or cut to this length if `overflow = "truncate"`. It is also the component's declared maximum when a `fit` budget is calculated. |
+| `allowed` | list of strings | The only accepted values, e.g. `["dev", "test", "prod"]`. Anything else is rejected. The longest entry is the component's declared maximum length. |
+| `pattern` | string | Regular expression the whole value must match, e.g. `"^[a-z]+$"`. Values that don't match are rejected. |
+| `overflow` | string | What happens to a value longer than its limit, either `max_length` or the room `fit` leaves. `"error"` (default) rejects it; `"truncate"` cuts it to the limit. |
+| `hash` | number | With `overflow = "truncate"`: how many hex characters of a hash of the original value to put at the end of the cut value, so two long values that start the same don't become identical (`hash = 2` gives e.g. `abcd1f` and `abcd9c`, not `abcd` twice). The hash is taken from this component's value only, so it is the same in every environment. |
 
 ### Resource type rules
 
-In `rules`. These apply to the finished name, in this order:
+The second argument of `rules`. They apply to one resource type's whole name, in the order below.
 
-| Step | Field | Meaning |
+| Step | Field | Description |
 |---|---|---|
-| 1 | `lowercase` | lowercase every part |
-| 2 | `remove` | regular expression of characters to delete (should match single characters) |
-| 3 | `fit` | the component that is shrunk so the name fits `max_length` (see below) |
-| 4 | `min_length`, `max_length` | length limits for the whole name |
-| | `components` | per-component constraints that **tighten** the scheme's for this type, never loosen them |
+| 1 | `lowercase` | `true` lowercases every part of the name. For resources that only accept lowercase, such as storage accounts. |
+| 2 | `remove` | Regular expression. Every match is deleted from the name, including the template's own text, so `"[^a-z0-9]"` keeps only lowercase letters and digits and drops the hyphens. It should match single characters. |
+| 3 | `fit` | Names the component that gets the room left under `max_length` (see below). Needs `max_length`. |
+| 4 | `min_length`, `max_length` | Length limits for the finished name. A name outside them is an error. |
+| | `components` | Per-component `min_length`, `max_length` and `allowed` for this resource type. They can only make the scheme's constraints stricter, never looser: the scheme says `type` is up to 4 characters, a Key Vault says 2. |
 
 ### Fitting a component into a length limit
 
