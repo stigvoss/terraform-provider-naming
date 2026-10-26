@@ -14,7 +14,11 @@ terraform {
 locals {
   naming = provider::naming::scheme(
     "{org}-{env}-{region}-{type}-{name}",
-    { org = "acme", env = "prod", region = "weu" },
+    {
+      org    = "acme"
+      env    = "prod"
+      region = "weu"
+    },
   )
 }
 
@@ -61,8 +65,18 @@ locals {
 }
 
 # kv-lis-wha-dev-weu-b73a  (24 - 5 hyphens - 2 - 3 - 4 - 3 - 4 leaves 3 characters for name)
-provider::naming::format(local.naming, { type = "kv", "system-code" = "lis", name = "wharf",
-  "environment-code" = "dev", "location-code" = "weu", discriminator = "b73a" }, local.key_vault)
+provider::naming::format(
+  local.naming,
+  {
+    type               = "kv"
+    "system-code"      = "lis"
+    name               = "wharf"
+    "environment-code" = "dev"
+    "location-code"    = "weu"
+    discriminator      = "b73a"
+  },
+  local.key_vault,
+)
 ```
 
 The same scheme also works for a storage account (3-24 lowercase letters and digits). `remove` strips the template's hyphens, and the budget is calculated after that, so `name` gets 8 characters in every environment:
@@ -78,8 +92,18 @@ storage_account = provider::naming::rules(local.naming, {
 })
 
 # stlisdatalakedevweub73a
-provider::naming::format(local.naming, { type = "st", "system-code" = "lis", name = "datalake",
-  "environment-code" = "dev", "location-code" = "weu", discriminator = "b73a" }, local.storage_account)
+provider::naming::format(
+  local.naming,
+  {
+    type               = "st"
+    "system-code"      = "lis"
+    name               = "datalake"
+    "environment-code" = "dev"
+    "location-code"    = "weu"
+    discriminator      = "b73a"
+  },
+  local.storage_account,
+)
 ```
 
 Provider functions cannot read provider configuration, so the template is passed as an argument rather than set in a `provider` block. Share one scheme across configurations with a module output.
