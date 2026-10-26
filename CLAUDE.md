@@ -63,6 +63,10 @@ function argument. Share it across configurations via a module output.
   single characters; they are applied to each component and each literal segment separately.
 
 ### Optional later
+- Bundle the scheme into `rules()`'s result so a call is `format(local.naming.key_vault, { ... })`
+  (two arguments instead of three). `format` would accept either a scheme or the bundle.
+  Provider-level scheme config is not possible: functions cannot read provider configuration,
+  and a data source would reintroduce "known after apply" names.
 - Built-in presets of hard limits per cloud, as a pure function (e.g. `provider::naming::azurerm()`
   returning resource type -> base rules), merged with scheme-specific `fit` / `components`:
   `merge(local.azure.storage_account, { fit = "name", ... })`. Not a resource or data source: those
