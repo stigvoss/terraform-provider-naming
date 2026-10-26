@@ -2,7 +2,6 @@ package provider
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework/function"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -118,15 +117,6 @@ func (f *formatFunction) Run(ctx context.Context, req function.RunRequest, resp 
 		resp.Error = function.NewArgumentFuncError(0, err.Error())
 		return
 	}
-	staticKeys := make([]string, 0, len(staticVals))
-	for k := range staticVals {
-		staticKeys = append(staticKeys, k)
-	}
-	if unused := tpl.UnusedKeys(staticKeys); len(unused) > 0 {
-		resp.Error = function.NewArgumentFuncError(0, fmt.Sprintf("config.static key(s) %s are not used by the template %q", quoteAll(unused), template.ValueString()))
-		return
-	}
-
 	name, err := tpl.Format(staticVals, call, comps, rules)
 	if err != nil {
 		resp.Error = function.NewArgumentFuncError(1, err.Error())

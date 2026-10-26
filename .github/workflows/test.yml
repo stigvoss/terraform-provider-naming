@@ -46,7 +46,7 @@ jobs:
             (echo "Run 'make generate' and commit the result." && exit 1)
 
   test:
-    name: Terraform ${{ matrix.terraform }} acceptance tests
+    name: Terraform ${{ matrix.terraform }} tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
@@ -65,5 +65,3 @@ jobs:
           terraform_version: ${{ matrix.terraform }}
           terraform_wrapper: false
       - run: go test -v -cover ./...
-        env:
-          TF_ACC: '1'

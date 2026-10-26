@@ -36,7 +36,7 @@ func (f *schemeFunction) Definition(_ context.Context, _ function.DefinitionRequ
 			"| `pattern` | string | optional | | Regular expression the whole value must match, e.g. `\"^[a-z]+$\"`. |\n" +
 			"| `overflow` | string | optional | a limit (`max_length`, or being the `fit` component) | What happens to a value longer than its limit: " +
 			"`\"error\"` (default) rejects it, `\"truncate\"` cuts it to the limit. |\n" +
-			"| `hash` | number | optional | `overflow = \"truncate\"` | Number of hex characters of a hash of the original value appended to the cut value, " +
+			"| `hash` | number | optional | `overflow = \"truncate\"` | Number of hex characters (1 to 64) of a hash of the original value appended to the cut value, " +
 			"so long values that start the same stay distinct. Taken from this component's value only, so it is the same in every environment. |",
 		Parameters: []function.Parameter{
 			function.StringParameter{
@@ -81,34 +81,31 @@ func (f *schemeFunction) Run(ctx context.Context, req function.RunRequest, resp 
 	if len(rest) == 1 {
 		compsVal = rest[0]
 	}
-	if template.IsUnknown() || static.IsUnknown() || hasUnknown(compsVal) {
-		// Validate what is already known, then defer the rest to apply time.
-		if !template.IsUnknown() {
-			if _, err := ParseTemplate(template.ValueString()); err != nil {
-				resp.Error = function.NewArgumentFuncError(0, err.Error())
+	// Check whatever is already known: the template syntax, and the static keys
+	// (known even when their values are not). Constraints on unknown values
+	// wait until apply.
+	var tpl *Template
+	if !template.IsUnknown() {
+		var err error
+		if tpl, err = ParseTemplate(template.ValueString()); err != nil {
+			resp.Error = function.NewArgumentFuncError(0, err.Error())
+			return
+		}
+		if !static.IsUnknown() {
+			if err := tpl.CheckStaticKeys(mapKeys(static)); err != nil {
+				resp.Error = function.NewArgumentFuncError(1, err.Error())
 				return
 			}
 		}
+	}
+	if template.IsUnknown() || hasUnknown(static) || hasUnknown(compsVal) {
 		resp.Error = resp.Result.Set(ctx, types.ObjectUnknown(schemeAttrTypes))
 		return
 	}
 
-	tpl, err := ParseTemplate(template.ValueString())
-	if err != nil {
-		resp.Error = function.NewArgumentFuncError(0, err.Error())
-		return
-	}
 	staticVals, ferr := stringMap(ctx, static, 1, "static")
 	if ferr != nil {
 		resp.Error = ferr
-		return
-	}
-	staticKeys := make([]string, 0, len(staticVals))
-	for k := range staticVals {
-		staticKeys = append(staticKeys, k)
-	}
-	if unused := tpl.UnusedKeys(staticKeys); len(unused) > 0 {
-		resp.Error = function.NewArgumentFuncError(1, fmt.Sprintf("static key(s) %s are not used by the template %q", quoteAll(unused), template.ValueString()))
 		return
 	}
 
@@ -134,6 +131,14 @@ func (f *schemeFunction) Run(ctx context.Context, req function.RunRequest, resp 
 		"components": ComponentsValue(comps),
 	})
 	resp.Error = resp.Result.Set(ctx, out)
+}
+
+func mapKeys(m types.Map) []string {
+	keys := make([]string, 0, len(m.Elements()))
+	for k := range m.Elements() {
+		keys = append(keys, k)
+	}
+	return keys
 }
 
 // stringMap converts m to a Go map. Null elements are an error.

@@ -20,7 +20,8 @@ type part struct {
 
 // ParseTemplate splits a template into literal text and {key} placeholders.
 // Braces must be balanced, placeholders cannot be nested or empty, and a
-// stray "}" is an error. There is no escape syntax.
+// stray "}" is an error. Whitespace inside the braces is ignored, so "{ name }"
+// is the placeholder "name". There is no escape syntax.
 func ParseTemplate(raw string) (*Template, error) {
 	t := &Template{raw: raw}
 	seen := map[string]bool{}
@@ -33,8 +34,8 @@ func ParseTemplate(raw string) (*Template, error) {
 			if end < 0 || raw[i+1+end] == '{' {
 				return nil, fmt.Errorf("unbalanced '{' at position %d in template %q", i, raw)
 			}
-			key := raw[i+1 : i+1+end]
-			if strings.TrimSpace(key) == "" {
+			key := strings.TrimSpace(raw[i+1 : i+1+end])
+			if key == "" {
 				return nil, fmt.Errorf("empty placeholder at position %d in template %q", i, raw)
 			}
 			if lit.Len() > 0 {
@@ -125,11 +126,6 @@ func (t *Template) merge(static, call map[string]string) (map[string]string, err
 		}
 	}
 	return vals, nil
-}
-
-// Render fills the template from static and call values with no constraints.
-func (t *Template) Render(static, call map[string]string) (string, error) {
-	return t.Format(static, call, nil, Rules{})
 }
 
 func quoteAll(keys []string) string {

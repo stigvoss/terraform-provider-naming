@@ -61,12 +61,12 @@ Keyed by placeholder name, in the third argument of `scheme`. A component with n
 
 | Field | Type | Required | Needs | Description |
 |---|---|---|---|---|
-| `min_length` | number | optional | | Shortest accepted value. Shorter values are rejected. Not more than `max_length`. |
+| `min_length` | number | optional | | Shortest accepted value (counted in characters). Shorter values are rejected. Not more than `max_length`. |
 | `max_length` | number | optional | | Longest accepted value. Longer values are rejected, or cut to this length if `overflow = "truncate"`. It is also the component's declared maximum when a `fit` budget is calculated. |
 | `allowed` | list of strings | optional | | The only accepted values, e.g. `["dev", "test", "prod"]`. Anything else is rejected. The longest entry is the component's declared maximum length. |
 | `pattern` | string | optional | | Regular expression the whole value must match, e.g. `"^[a-z]+$"`. Values that don't match are rejected. |
 | `overflow` | string | optional | a limit: `max_length`, or being the `fit` component | What happens to a value longer than its limit, either `max_length` or the room `fit` leaves. `"error"` (default) rejects it; `"truncate"` cuts it to the limit. With no limit it has no effect. |
-| `hash` | number | optional | `overflow = "truncate"` | How many hex characters of a hash of the original value to put at the end of the cut value, so two long values that start the same don't become identical (`hash = 2` gives e.g. `abcd1f` and `abcd9c`, not `abcd` twice). The hash is taken from this component's value only, so it is the same in every environment. Only applied when a value is actually cut. |
+| `hash` | number | optional | `overflow = "truncate"` | How many hex characters (1 to 64) of a hash of the original value to put at the end of the cut value, so two long values that start the same don't become identical (`hash = 2` gives e.g. `abcd1f` and `abcd9c`, not `abcd` twice). The hash is taken from this component's value only, so it is the same in every environment. Only applied when a value is actually cut. |
 
 ### Resource type rules
 
@@ -183,7 +183,7 @@ See [docs/](docs/) for the full function reference.
 ## Development
 
 ```sh
-make test        # unit and acceptance tests (needs a terraform binary, 1.8+)
+make test        # unit tests and tests that run Terraform (needs a terraform binary, 1.8+)
 make generate    # regenerate docs with tfplugindocs
 make lint
 ```

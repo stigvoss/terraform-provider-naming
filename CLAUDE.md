@@ -97,5 +97,5 @@ docs/
 1. `go mod init` and scaffold from the terraform-provider-scaffolding-framework layout.
 2. Implement `render.go` with table-driven unit tests (missing key, extra key, override, unbalanced braces).
 3. Implement the provider and the `format` function.
-4. Add acceptance tests using `terraform-plugin-testing` with a `provider::naming::format(...)` output (needs Terraform 1.8+).
+4. Add tests that run Terraform using `terraform-plugin-testing` with a `provider::naming::format(...)` output (needs Terraform 1.8+).
 5. Add an example under `examples/` and generate docs with `tfplugindocs`.

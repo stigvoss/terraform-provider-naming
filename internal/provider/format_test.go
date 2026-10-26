@@ -189,3 +189,112 @@ func sha2(s string, n int) string {
 	v, _ := truncate("x", strings.Repeat("a", n+1), s, n+1, ComponentSpec{Overflow: overflowTruncate, Hash: n})
 	return v[1:]
 }
+
+func TestFormatCountsCharacters(t *testing.T) {
+	tpl, _ := ParseTemplate("{name}")
+	comps := map[string]ComponentSpec{"name": {MaxLength: ip(3), Overflow: overflowTruncate}}
+	got, err := tpl.Format(nil, map[string]string{"name": "æøåæøå"}, comps, Rules{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "æøå" {
+		t.Fatalf("got %q, want %q", got, "æøå")
+	}
+	// Three characters, six bytes: within a limit of 3.
+	if _, err := tpl.Format(nil, map[string]string{"name": "æøå"}, map[string]ComponentSpec{"name": {MaxLength: ip(3)}}, Rules{}); err != nil {
+		t.Fatalf("limit counts bytes, not characters: %v", err)
+	}
+}
+
+func TestFormatHashWithinDigest(t *testing.T) {
+	tpl, _ := ParseTemplate("{name}")
+	long := strings.Repeat("a", 100)
+	comps := map[string]ComponentSpec{"name": {MaxLength: ip(80), Overflow: overflowTruncate, Hash: 64}}
+	got, err := tpl.Format(nil, map[string]string{"name": long}, comps, Rules{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len([]rune(got)) != 80 {
+		t.Fatalf("got %d characters, want 80", len([]rune(got)))
+	}
+}
+
+func TestComponentSpecValidate(t *testing.T) {
+	tests := []struct {
+		name    string
+		spec    ComponentSpec
+		wantErr string
+	}{
+		{"hash too large", ComponentSpec{Overflow: overflowTruncate, Hash: 65}, "between 0 and 64"},
+		{"hash negative", ComponentSpec{Overflow: overflowTruncate, Hash: -1}, "between 0 and 64"},
+		{"hash without truncate", ComponentSpec{Hash: 2}, "only applies"},
+		{"hash with error overflow", ComponentSpec{Overflow: overflowError, Hash: 2}, "only applies"},
+		{"hash ok", ComponentSpec{Overflow: overflowTruncate, Hash: 64}, ""},
+		{"min above max", ComponentSpec{MinLength: ip(5), MaxLength: ip(2)}, "greater than"},
+		{"bad overflow", ComponentSpec{Overflow: "cut"}, "overflow must be"},
+		{"bad pattern", ComponentSpec{Pattern: "("}, "invalid pattern"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.spec.Validate()
+			if tc.wantErr == "" && err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if tc.wantErr != "" && (err == nil || !strings.Contains(err.Error(), tc.wantErr)) {
+				t.Fatalf("want error containing %q, got %v", tc.wantErr, err)
+			}
+		})
+	}
+}
+
+func TestFormatUnusedStatic(t *testing.T) {
+	tpl, _ := ParseTemplate("{org}-{name}")
+	_, err := tpl.Format(map[string]string{"org": "acme", "orgg": "x"}, map[string]string{"name": "a"}, nil, Rules{})
+	if err == nil || !strings.Contains(err.Error(), `"orgg"`) {
+		t.Fatalf("want unused static key error, got %v", err)
+	}
+}
+
+func TestCheckRules(t *testing.T) {
+	tpl, _ := ParseTemplate(kvTemplate)
+	if err := tpl.CheckRules(kvScheme(), kvRules()); err != nil {
+		t.Fatalf("key vault rules should be valid: %v", err)
+	}
+	r := kvRules()
+	r.MaxLength = ip(20)
+	if err := tpl.CheckRules(kvScheme(), r); err == nil || !strings.Contains(err.Error(), "no room") {
+		t.Fatalf("want no room error, got %v", err)
+	}
+	r = kvRules()
+	r.Components = map[string]ComponentSpec{"type": {MaxLength: ip(9)}}
+	if err := tpl.CheckRules(kvScheme(), r); err == nil || !strings.Contains(err.Error(), "looser") {
+		t.Fatalf("want looser error, got %v", err)
+	}
+}
+
+func TestTighten(t *testing.T) {
+	base := ComponentSpec{MaxLength: ip(4), MinLength: ip(2), Allowed: []string{"dev", "test", "prod"}}
+	tests := []struct {
+		name    string
+		over    ComponentSpec
+		wantErr string
+	}{
+		{"shorter max", ComponentSpec{MaxLength: ip(3)}, ""},
+		{"longer max", ComponentSpec{MaxLength: ip(5)}, "looser"},
+		{"higher min", ComponentSpec{MinLength: ip(3)}, ""},
+		{"lower min", ComponentSpec{MinLength: ip(1)}, "looser"},
+		{"allowed subset", ComponentSpec{Allowed: []string{"dev"}}, ""},
+		{"allowed superset", ComponentSpec{Allowed: []string{"dev", "stage"}}, `"stage"`},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := tighten("env", base, tc.over)
+			if tc.wantErr == "" && err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if tc.wantErr != "" && (err == nil || !strings.Contains(err.Error(), tc.wantErr)) {
+				t.Fatalf("want error containing %q, got %v", tc.wantErr, err)
+			}
+		})
+	}
+}

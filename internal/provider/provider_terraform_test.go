@@ -10,11 +10,11 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/tfversion"
 )
 
-var testAccProtoV6ProviderFactories = map[string]func() (tfprotov6.ProviderServer, error){
+var testTFProtoV6ProviderFactories = map[string]func() (tfprotov6.ProviderServer, error){
 	"naming": providerserver.NewProtocol6WithError(New("test")()),
 }
 
-const testAccConfig = `
+const testTFConfig = `
 locals {
   naming = provider::naming::scheme(
     "{org}-{env}-{region}-{type}-{name}",
@@ -27,20 +27,20 @@ output "rg" {
 }
 `
 
-func TestAccFormatFunction(t *testing.T) {
+func TestTerraformFormatFunction(t *testing.T) {
 	resource.UnitTest(t, resource.TestCase{
 		TerraformVersionChecks:   []tfversion.TerraformVersionCheck{tfversion.SkipBelow(tfversion.Version1_8_0)},
-		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		ProtoV6ProviderFactories: testTFProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccConfig,
+				Config: testTFConfig,
 				Check:  resource.TestCheckOutput("rg", "acme-prod-weu-rg-network"),
 			},
 		},
 	})
 }
 
-func TestAccFormatFunctionErrors(t *testing.T) {
+func TestTerraformFormatFunctionErrors(t *testing.T) {
 	cfg := func(call string) string {
 		return `
 locals {
@@ -51,7 +51,7 @@ output "x" { value = provider::naming::format(local.naming, ` + call + `) }
 	}
 	resource.UnitTest(t, resource.TestCase{
 		TerraformVersionChecks:   []tfversion.TerraformVersionCheck{tfversion.SkipBelow(tfversion.Version1_8_0)},
-		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		ProtoV6ProviderFactories: testTFProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{Config: cfg(`{ type = "rg" }`), ExpectError: regexp.MustCompile(`missing\s+value`)},
 			{Config: cfg(`{ type = "rg", name = "n", typo = "x" }`), ExpectError: regexp.MustCompile(`not used by the\s+template`)},
@@ -61,13 +61,13 @@ output "x" { value = provider::naming::format(local.naming, ` + call + `) }
 	})
 }
 
-func TestAccSchemeFunctionErrors(t *testing.T) {
+func TestTerraformSchemeFunctionErrors(t *testing.T) {
 	cfg := func(args string) string {
 		return `output "x" { value = provider::naming::scheme(` + args + `) }`
 	}
 	resource.UnitTest(t, resource.TestCase{
 		TerraformVersionChecks:   []tfversion.TerraformVersionCheck{tfversion.SkipBelow(tfversion.Version1_8_0)},
-		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		ProtoV6ProviderFactories: testTFProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{Config: cfg(`"{org}-{name", {}`), ExpectError: regexp.MustCompile(`unbalanced`)},
 			{Config: cfg(`"{org}-{name}", { orgg = "acme" }`), ExpectError: regexp.MustCompile(`not\s+used\s+by\s+the\s+template`)},
@@ -76,7 +76,7 @@ func TestAccSchemeFunctionErrors(t *testing.T) {
 	})
 }
 
-const testAccKeyVault = `
+const testTFKeyVault = `
 locals {
   naming = provider::naming::scheme(
     "{type}-{system}-{name}-{environment}-{region}-{discriminator}",
@@ -104,13 +104,13 @@ output "dev"  { value = provider::naming::format(local.naming, merge(local.parts
 output "prod" { value = provider::naming::format(local.naming, merge(local.parts, { name = "wharf", environment = "prod" }), local.key_vault) }
 `
 
-func TestAccKeyVault(t *testing.T) {
+func TestTerraformKeyVault(t *testing.T) {
 	resource.UnitTest(t, resource.TestCase{
 		TerraformVersionChecks:   []tfversion.TerraformVersionCheck{tfversion.SkipBelow(tfversion.Version1_8_0)},
-		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		ProtoV6ProviderFactories: testTFProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccKeyVault,
+				Config: testTFKeyVault,
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckOutput("dev", "kv-lis-wha-dev-weu-b73a"),
 					resource.TestCheckOutput("prod", "kv-lis-wha-prod-weu-b73a"),
@@ -120,7 +120,7 @@ func TestAccKeyVault(t *testing.T) {
 	})
 }
 
-func TestAccRulesAndComponentErrors(t *testing.T) {
+func TestTerraformRulesAndComponentErrors(t *testing.T) {
 	scheme := `provider::naming::scheme("{type}-{env}-{name}", {}, { env = { allowed = ["dev", "prod"] }, type = { max_length = 4 } })`
 	cfg := func(body string) string {
 		return `locals { naming = ` + scheme + ` }
@@ -128,7 +128,7 @@ func TestAccRulesAndComponentErrors(t *testing.T) {
 	}
 	resource.UnitTest(t, resource.TestCase{
 		TerraformVersionChecks:   []tfversion.TerraformVersionCheck{tfversion.SkipBelow(tfversion.Version1_8_0)},
-		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		ProtoV6ProviderFactories: testTFProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config:      cfg(`output "x" { value = provider::naming::format(local.naming, { type = "kv", env = "staging", name = "a" }) }`),
@@ -149,6 +149,62 @@ func TestAccRulesAndComponentErrors(t *testing.T) {
 			{
 				Config:      `output "x" { value = provider::naming::scheme("{a}", {}, { b = { max_length = 3 } }) }`,
 				ExpectError: regexp.MustCompile(`not\s+used\s+by\s+the\s+template`),
+			},
+		},
+	})
+}
+
+// Values that are only known after apply must not fail the plan: constraints
+// on them are checked once they are known.
+func TestTerraformUnknownValues(t *testing.T) {
+	resource.UnitTest(t, resource.TestCase{
+		TerraformVersionChecks:   []tfversion.TerraformVersionCheck{tfversion.SkipBelow(tfversion.Version1_8_0)},
+		ProtoV6ProviderFactories: testTFProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				// Known-wrong values are still rejected, with the value in the message.
+				Config: `
+locals {
+  naming = provider::naming::scheme("{env}-{name}", { env = "staging" }, { env = { allowed = ["dev", "prod"] } })
+}
+output "x" { value = local.naming }
+`,
+				ExpectError: regexp.MustCompile(`not\s+one\s+of\s+the\s+allowed`),
+			},
+			{
+				Config:      `output "x" { value = provider::naming::scheme("{a}", {}, { a = { hash = 99, overflow = "truncate" } }) }`,
+				ExpectError: regexp.MustCompile(`between\s+0\s+and\s+64`),
+			},
+			{
+				Config: `
+resource "terraform_data" "env" {
+  input = "dev"
+}
+
+locals {
+  naming = provider::naming::scheme(
+    "{env}-{name}",
+    { env = terraform_data.env.output },
+    { env = { allowed = ["dev", "prod"], max_length = 4 } },
+  )
+  rules = provider::naming::rules(local.naming, { lowercase = true, max_length = 10, fit = "name" })
+}
+
+output "static_unknown" {
+  value = provider::naming::format(local.naming, { name = "a" }, local.rules)
+}
+
+output "variable_unknown" {
+  value = provider::naming::format(
+    provider::naming::scheme("{env}-{name}", {}, { env = { allowed = ["dev", "prod"] } }),
+    { env = terraform_data.env.output, name = "b" },
+  )
+}
+`,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckOutput("static_unknown", "dev-a"),
+					resource.TestCheckOutput("variable_unknown", "dev-b"),
+				),
 			},
 		},
 	})

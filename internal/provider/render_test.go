@@ -20,6 +20,7 @@ func TestParseTemplate(t *testing.T) {
 		{"stray close", "{org}-env}", nil, "unbalanced '}'"},
 		{"empty key", "{org}-{}", nil, "empty placeholder"},
 		{"blank key", "{ }", nil, "empty placeholder"},
+		{"whitespace around key is ignored", "{ org }-{name }", []string{"org", "name"}, ""},
 		{"no placeholders", "static", nil, "no placeholders"},
 		{"empty", "", nil, "no placeholders"},
 	}
@@ -65,7 +66,13 @@ func TestRender(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			got, err := tpl.Render(static, tc.call)
+			used := map[string]string{}
+			for k, v := range static {
+				if tpl.Has(k) {
+					used[k] = v
+				}
+			}
+			got, err := tpl.Format(used, tc.call, nil, Rules{})
 			if tc.wantErr != "" {
 				if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
 					t.Fatalf("want error containing %q, got %v", tc.wantErr, err)

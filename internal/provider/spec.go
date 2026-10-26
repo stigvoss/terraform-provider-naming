@@ -4,7 +4,24 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
+	"sync"
 )
+
+// maxHash is the number of hex characters in the SHA-256 digest hash draws from.
+const maxHash = 64
+
+var regexpCache sync.Map
+
+// mustRegexp compiles a pattern once. Patterns are validated before use, so
+// it does not fail for specs and rules that passed Validate.
+func mustRegexp(pattern string) *regexp.Regexp {
+	if re, ok := regexpCache.Load(pattern); ok {
+		return re.(*regexp.Regexp)
+	}
+	re := regexp.MustCompile(pattern)
+	regexpCache.Store(pattern, re)
+	return re
+}
 
 const (
 	overflowError    = "error"
@@ -44,8 +61,11 @@ func (c ComponentSpec) Validate() error {
 	if c.MinLength != nil && c.MaxLength != nil && *c.MinLength > *c.MaxLength {
 		return fmt.Errorf("min_length %d is greater than max_length %d", *c.MinLength, *c.MaxLength)
 	}
-	if c.Hash < 0 {
-		return fmt.Errorf("hash must not be negative")
+	if c.Hash < 0 || c.Hash > maxHash {
+		return fmt.Errorf("hash must be between 0 and %d", maxHash)
+	}
+	if c.Hash > 0 && c.Overflow != overflowTruncate {
+		return fmt.Errorf("hash only applies with overflow = %q", overflowTruncate)
 	}
 	switch c.Overflow {
 	case "", overflowError, overflowTruncate:
@@ -69,8 +89,8 @@ func (c ComponentSpec) Bound() (n int, ok bool) {
 	if len(c.Allowed) > 0 {
 		longest := 0
 		for _, a := range c.Allowed {
-			if len(a) > longest {
-				longest = len(a)
+			if n := length(a); n > longest {
+				longest = n
 			}
 		}
 		if !ok || longest < n {
