@@ -63,7 +63,11 @@ function argument. Share it across configurations via a module output.
   single characters; they are applied to each component and each literal segment separately.
 
 ### Optional later
-- Built-in presets for common Azure resource types.
+- Built-in presets of hard limits per cloud, as a pure function (e.g. `provider::naming::azurerm()`
+  returning resource type -> base rules), merged with scheme-specific `fit` / `components`:
+  `merge(local.azure.storage_account, { fit = "name", ... })`. Not a resource or data source: those
+  would make names unknown at plan time. Needs a whole-name `pattern` rule first (Key Vault: starts
+  with a letter, no consecutive hyphens). No type abbreviations (`kv`, `st`): that is org convention.
 
 ## Gotchas
 
