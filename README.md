@@ -47,14 +47,14 @@ Resource types have different naming rules (an Azure storage account allows only
 ```hcl
 locals {
   scheme = provider::naming::scheme(
-    "{type}-{system-code}-{name}-{environment-code}-{location-code}-{discriminator}",
+    "{type}-{system}-{name}-{environment}-{location}-{discriminator}",
     {},
     {
       type               = { max_length = 4 }
-      "system-code"      = { max_length = 3 }
+      system      = { max_length = 3 }
       name               = { on_too_long = "truncate" }
-      "environment-code" = { allowed = ["dev", "test", "prod"] }
-      "location-code"    = { max_length = 3 }
+      environment = { allowed = ["dev", "test", "prod"] }
+      location    = { max_length = 3 }
       discriminator      = { max_length = 4 }
     },
   )
@@ -92,10 +92,10 @@ provider::naming::format(
   local.naming.scheme,
   {
     type               = "kv"
-    "system-code"      = "lis"
+    system      = "lis"
     name               = "wharf"
-    "environment-code" = "dev"
-    "location-code"    = "weu"
+    environment = "dev"
+    location    = "weu"
     discriminator      = "b73a"
   },
   local.naming.rules.key_vault,
@@ -106,10 +106,10 @@ provider::naming::format(
   local.naming.scheme,
   {
     type               = "st"
-    "system-code"      = "lis"
+    system      = "lis"
     name               = "datalake"
-    "environment-code" = "dev"
-    "location-code"    = "weu"
+    environment = "dev"
+    location    = "weu"
     discriminator      = "b73a"
   },
   local.naming.rules.storage_account,

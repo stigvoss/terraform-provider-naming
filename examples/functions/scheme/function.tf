@@ -22,15 +22,15 @@ locals {
 locals {
   constrained = {
     scheme = provider::naming::scheme(
-      "{type}-{system-code}-{name}-{environment-code}-{location-code}-{discriminator}",
+      "{type}-{system}-{name}-{environment}-{location}-{discriminator}",
       {},
       {
-        type               = { max_length = 4 }
-        "system-code"      = { max_length = 3 }
-        name               = { on_too_long = "truncate" }
-        "environment-code" = { allowed = ["dev", "test", "prod"] }
-        "location-code"    = { max_length = 3 }
-        discriminator      = { max_length = 4 }
+        type          = { max_length = 4 }
+        system        = { max_length = 3 }
+        name          = { on_too_long = "truncate" }
+        environment   = { allowed = ["dev", "test", "prod"] }
+        location      = { max_length = 3 }
+        discriminator = { max_length = 4 }
       },
     )
   }

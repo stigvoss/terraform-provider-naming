@@ -7,16 +7,16 @@ import (
 
 func ip(n int) *int { return &n }
 
-const kvTemplate = "{type}-{system-code}-{name}-{environment-code}-{location-code}-{discriminator}"
+const kvTemplate = "{type}-{system}-{name}-{environment}-{location}-{discriminator}"
 
 func kvScheme() map[string]ComponentSpec {
 	return map[string]ComponentSpec{
-		"type":             {MaxLength: ip(4)},
-		"system-code":      {MaxLength: ip(3)},
-		"name":             {OnTooLong: onTooLongTruncate},
-		"environment-code": {Allowed: []string{"dev", "test", "prod"}},
-		"location-code":    {MaxLength: ip(3)},
-		"discriminator":    {MaxLength: ip(4)},
+		"type":          {MaxLength: ip(4)},
+		"system":        {MaxLength: ip(3)},
+		"name":          {OnTooLong: onTooLongTruncate},
+		"environment":   {Allowed: []string{"dev", "test", "prod"}},
+		"location":      {MaxLength: ip(3)},
+		"discriminator": {MaxLength: ip(4)},
 	}
 }
 
@@ -29,7 +29,7 @@ func kvRules() Rules {
 }
 
 func kvCall(env, name string) map[string]string {
-	return map[string]string{"type": "kv", "system-code": "lis", "name": name, "environment-code": env, "location-code": "weu", "discriminator": "b73a"}
+	return map[string]string{"type": "kv", "system": "lis", "name": name, "environment": env, "location": "weu", "discriminator": "b73a"}
 }
 
 func TestFormatKeyVault(t *testing.T) {

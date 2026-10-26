@@ -79,14 +79,14 @@ func TestAccSchemeFunctionErrors(t *testing.T) {
 const testAccKeyVault = `
 locals {
   naming = provider::naming::scheme(
-    "{type}-{system-code}-{name}-{environment-code}-{location-code}-{discriminator}",
+    "{type}-{system}-{name}-{environment}-{location}-{discriminator}",
     {},
     {
       type               = { max_length = 4 }
-      "system-code"      = { max_length = 3 }
+      system      = { max_length = 3 }
       name               = { on_too_long = "truncate" }
-      "environment-code" = { allowed = ["dev", "test", "prod"] }
-      "location-code"    = { max_length = 3 }
+      environment = { allowed = ["dev", "test", "prod"] }
+      location    = { max_length = 3 }
       discriminator      = { max_length = 4 }
     },
   )
@@ -97,11 +97,11 @@ locals {
     components = { type = { max_length = 2 } }
   })
 
-  parts = { type = "kv", "system-code" = "lis", "location-code" = "weu", discriminator = "b73a" }
+  parts = { type = "kv", system = "lis", location = "weu", discriminator = "b73a" }
 }
 
-output "dev"  { value = provider::naming::format(local.naming, merge(local.parts, { name = "wharf", "environment-code" = "dev" }), local.key_vault) }
-output "prod" { value = provider::naming::format(local.naming, merge(local.parts, { name = "wharf", "environment-code" = "prod" }), local.key_vault) }
+output "dev"  { value = provider::naming::format(local.naming, merge(local.parts, { name = "wharf", environment = "dev" }), local.key_vault) }
+output "prod" { value = provider::naming::format(local.naming, merge(local.parts, { name = "wharf", environment = "prod" }), local.key_vault) }
 `
 
 func TestAccKeyVault(t *testing.T) {
