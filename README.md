@@ -1,7 +1,7 @@
 # terraform-provider-naming
 
 A Terraform provider whose only job is to name resources from one central template.
-It has no resources and no data sources, only two [provider-defined functions](https://developer.hashicorp.com/terraform/language/functions#provider-defined-functions).
+It has no resources and no data sources, only three [provider-defined functions](https://developer.hashicorp.com/terraform/language/functions#provider-defined-functions).
 Requires Terraform **1.8+**.
 
 ```hcl
@@ -12,18 +12,20 @@ terraform {
 }
 
 locals {
-  naming = provider::naming::scheme(
-    "{org}-{env}-{region}-{type}-{name}",
-    {
-      org    = "acme"
-      env    = "prod"
-      region = "weu"
-    },
-  )
+  naming = {
+    scheme = provider::naming::scheme(
+      "{org}-{env}-{region}-{type}-{name}",
+      {
+        org    = "acme"
+        env    = "prod"
+        region = "weu"
+      },
+    )
+  }
 }
 
 resource "azurerm_resource_group" "rg" {
-  name = provider::naming::format(local.naming, { type = "rg", name = "network" })
+  name = provider::naming::format(local.naming.scheme, { type = "rg", name = "network" })
   # -> acme-prod-weu-rg-network
 }
 ```
@@ -44,7 +46,7 @@ Resource types have different naming rules (an Azure storage account allows only
 
 ```hcl
 locals {
-  naming = provider::naming::scheme(
+  scheme = provider::naming::scheme(
     "{type}-{system-code}-{name}-{environment-code}-{location-code}-{discriminator}",
     {},
     {
@@ -56,17 +58,38 @@ locals {
       discriminator      = { max_length = 4 }
     },
   )
+}
 
-  key_vault = provider::naming::rules(local.naming, {
-    max_length = 24
-    fit        = "name"
-    components = { type = { max_length = 2 } }
-  })
+# A local cannot reference itself, so the scheme is built above and collected here.
+# In a shared module, `scheme` and `rules` would be outputs.
+locals {
+  naming = {
+    scheme = local.scheme
+
+    rules = {
+      key_vault = provider::naming::rules(local.scheme, {
+        max_length = 24
+        fit        = "name"
+        components = { type = { max_length = 2 } }
+      })
+
+      # `remove` strips the template's hyphens before the budget is calculated,
+      # so `name` gets 8 characters in every environment.
+      storage_account = provider::naming::rules(local.scheme, {
+        lowercase  = true
+        remove     = "[^a-z0-9]"
+        min_length = 3
+        max_length = 24
+        fit        = "name"
+        components = { type = { max_length = 2 } }
+      })
+    }
+  }
 }
 
 # kv-lis-wha-dev-weu-b73a  (24 - 5 hyphens - 2 - 3 - 4 - 3 - 4 leaves 3 characters for name)
 provider::naming::format(
-  local.naming,
+  local.naming.scheme,
   {
     type               = "kv"
     "system-code"      = "lis"
@@ -75,25 +98,12 @@ provider::naming::format(
     "location-code"    = "weu"
     discriminator      = "b73a"
   },
-  local.key_vault,
+  local.naming.rules.key_vault,
 )
-```
-
-The same scheme also works for a storage account (3-24 lowercase letters and digits). `remove` strips the template's hyphens, and the budget is calculated after that, so `name` gets 8 characters in every environment:
-
-```hcl
-storage_account = provider::naming::rules(local.naming, {
-  lowercase  = true
-  remove     = "[^a-z0-9]"
-  min_length = 3
-  max_length = 24
-  fit        = "name"
-  components = { type = { max_length = 2 } }
-})
 
 # stlisdatalakedevweub73a
 provider::naming::format(
-  local.naming,
+  local.naming.scheme,
   {
     type               = "st"
     "system-code"      = "lis"
@@ -102,7 +112,7 @@ provider::naming::format(
     "location-code"    = "weu"
     discriminator      = "b73a"
   },
-  local.storage_account,
+  local.naming.rules.storage_account,
 )
 ```
 

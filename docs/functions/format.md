@@ -16,26 +16,28 @@ The optional third argument holds per-resource-type rules: `lowercase` (bool), `
 
 ```terraform
 locals {
-  naming = provider::naming::scheme(
-    "{org}-{env}-{region}-{type}-{name}",
-    {
-      org    = "acme"
-      env    = "prod"
-      region = "weu"
-    },
-  )
+  naming = {
+    scheme = provider::naming::scheme(
+      "{org}-{env}-{region}-{type}-{name}",
+      {
+        org    = "acme"
+        env    = "prod"
+        region = "weu"
+      },
+    )
+  }
 }
 
 # acme-prod-weu-rg-network
 output "resource_group_name" {
-  value = provider::naming::format(local.naming, {
+  value = provider::naming::format(local.naming.scheme, {
     type = "rg"
     name = "network"
   })
 }
 
-# Pass rules as a third argument for resource types with their own limits.
-# See the `rules` function for a complete Key Vault and storage account example.
+# Pass rules as a third argument for resource types with their own limits,
+# e.g. local.naming.rules.key_vault. See the `rules` function for a complete example.
 ```
 
 ## Signature
