@@ -21,7 +21,7 @@ Checks the template syntax, that every `static` key is used by the template, the
 | `overflow` | string | optional | a limit (`max_length`, or being the `fit` component) | What happens to a value longer than its limit: `"error"` (default) rejects it, `"truncate"` cuts it to the limit. |
 | `hash` | number | optional | `overflow = "truncate"` | Number of hex characters (1 to 64) of a hash of the original value appended to the cut value, so long values that start the same stay distinct. Taken from this component's value only, so it is the same in every environment. |
 
-**Resource type rules** (fourth argument) are an object with `by`, the placeholder whose value selects the rules (for example `type`), and `rules`, a map from that value to the rules for it. A value with no entry has no extra rules. Every field in a rule is optional.
+**Resource type rules** (fourth argument) are an object with `by`, the placeholder whose value selects the rules (for example `type`), and `rules`, a map from that value to the rules for it. A value with no entry has no extra rules. Inside a rule the `by` component is always the rule's key, so a `kv` rule counts `type` as 2 characters in its length budget. Every field in a rule is optional.
 
 | Field | Type | Needs | Description |
 |---|---|---|---|
@@ -78,11 +78,11 @@ locals {
       by = "type"
       rules = {
         # Key Vault: 24 characters, hyphens allowed.
-        #   24 - 5 hyphens - 2 (type) - 3 - 4 - 3 - 4 leaves 3 characters for `name`.
+        #   Inside this rule `type` is always "kv", so it counts as 2 characters
+        #   (not the scheme's 4): 24 - 5 hyphens - 2 - 3 - 4 - 3 - 4 leaves 3 for `name`.
         kv = {
           max_length = 24
           fit        = "name"
-          components = { type = { max_length = 2 } } # tightens the scheme's 4
         }
 
         # Storage account: 3-24 lowercase letters and digits, no hyphens.
@@ -95,7 +95,6 @@ locals {
           min_length = 3
           max_length = 24
           fit        = "name"
-          components = { type = { max_length = 2 } }
         }
       }
     },

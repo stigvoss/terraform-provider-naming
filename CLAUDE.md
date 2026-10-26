@@ -48,7 +48,9 @@ function argument. Share it across configurations via a module output.
   min_length, max_length, fit, components } } }`. Overrides in `components` may only tighten the
   scheme's `max_length` / `min_length` / `allowed`. A value of `by` with no entry has no rules.
   Each rule is checked against the scheme when it is defined (`CheckRuleset`), including that its
-  key is a valid value for the `by` component.
+  key is a valid value for the `by` component. Inside a rule the `by` component is pinned to the
+  key (`Ruleset.withSelector`), so the `fit` budget counts `type` as `len("kv")`, not the
+  scheme's bound; rules need no `components` override for it.
 - Unknown inputs yield an unknown result; whatever is known is still validated.
 
 ### Function `format(config, variables)`

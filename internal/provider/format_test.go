@@ -328,3 +328,30 @@ func TestCheckRuleset(t *testing.T) {
 		})
 	}
 }
+
+// Inside a rule the selecting component can only be its key, so the fit budget
+// uses the key's length, not the scheme's looser bound.
+func TestRulesetPinsSelector(t *testing.T) {
+	tpl, _ := ParseTemplate(kvTemplate)
+	scheme := kvScheme() // type is up to 4 characters
+	rs := Ruleset{By: "type", Rules: map[string]Rules{"kv": {MaxLength: ip(24), Fit: "name"}}}
+	if err := tpl.CheckRuleset(scheme, rs); err != nil {
+		t.Fatal(err)
+	}
+	got, err := tpl.Format(nil, kvCall("dev", "wharf"), scheme, rs.For("kv"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "kv-lis-wha-dev-weu-b73a" {
+		t.Fatalf("got %q, want the 3-character name budget of a 2-character type", got)
+	}
+	// Without the pinning the scheme's bound of 4 would leave a budget of 1.
+	loose := Rules{MaxLength: ip(24), Fit: "name"}
+	got, _ = tpl.Format(nil, kvCall("dev", "wharf"), scheme, loose)
+	if got != "kv-lis-w-dev-weu-b73a" {
+		t.Fatalf("unpinned budget changed: %q", got)
+	}
+	if r := rs.For("rg"); r.MaxLength != nil || r.Components != nil {
+		t.Fatalf("a type with no entry must have no rules, got %+v", r)
+	}
+}

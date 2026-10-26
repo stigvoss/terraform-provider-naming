@@ -92,8 +92,8 @@ locals {
     {
       by = "type"
       rules = {
-        kv = { max_length = 24, fit = "name", components = { type = { max_length = 2 } } }
-        st = { lowercase = true, remove = "[^a-z0-9]", min_length = 3, max_length = 24, fit = "name", components = { type = { max_length = 2 } } }
+        kv = { max_length = 24, fit = "name" }
+        st = { lowercase = true, remove = "[^a-z0-9]", min_length = 3, max_length = 24, fit = "name" }
       }
     },
   )

@@ -274,7 +274,8 @@ func (r Rules) transformer() func(string) string {
 // CheckRuleset validates a scheme's per-type rules without any values: the
 // selecting placeholder exists, every rule is valid against the scheme's
 // components, and every selector value is itself a valid value for that
-// placeholder (under the tightening of its own rule).
+// placeholder (under the tightening of its own rule). The fit budget is checked
+// with the selecting component pinned to its key.
 func (t *Template) CheckRuleset(comps map[string]ComponentSpec, rs Ruleset) error {
 	if rs.By == "" {
 		return nil
@@ -295,6 +296,10 @@ func (t *Template) CheckRuleset(comps map[string]ComponentSpec, rs Ruleset) erro
 		specs, _ := t.effectiveSpecs(comps, rule)
 		if _, err := CheckValue(rs.By, k, specs[rs.By]); err != nil {
 			return fmt.Errorf("rules for %q: the key is not a valid %s: %w", k, rs.By, err)
+		}
+		// Check the budget the way format will see it, with the selector pinned.
+		if err := t.CheckRules(comps, rs.withSelector(rule, k)); err != nil {
+			return fmt.Errorf("rules for %q: %w", k, err)
 		}
 	}
 	return nil

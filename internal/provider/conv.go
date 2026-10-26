@@ -404,7 +404,28 @@ type Ruleset struct {
 
 // For returns the rules for a selector value. A value with no entry has no
 // extra rules.
-func (rs Ruleset) For(value string) Rules { return rs.Rules[value] }
+func (rs Ruleset) For(value string) Rules {
+	r, ok := rs.Rules[value]
+	if !ok {
+		return Rules{}
+	}
+	return rs.withSelector(r, value)
+}
+
+// withSelector pins the selecting component to its key. Inside a rule that
+// component can only be that value, so the rule's length budget uses the key's
+// length instead of the scheme's looser bound for every type.
+func (rs Ruleset) withSelector(r Rules, value string) Rules {
+	comps := make(map[string]ComponentSpec, len(r.Components)+1)
+	for k, v := range r.Components {
+		comps[k] = v
+	}
+	spec := comps[rs.By]
+	spec.Allowed = []string{value}
+	comps[rs.By] = spec
+	r.Components = comps
+	return r
+}
 
 // ParseRuleset reads the fourth argument of scheme. A null value means no rules.
 func ParseRuleset(v attr.Value) (Ruleset, error) {

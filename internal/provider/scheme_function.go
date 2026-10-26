@@ -40,6 +40,7 @@ func (f *schemeFunction) Definition(_ context.Context, _ function.DefinitionRequ
 			"so long values that start the same stay distinct. Taken from this component's value only, so it is the same in every environment. |\n\n" +
 			"**Resource type rules** (fourth argument) are an object with `by`, the placeholder whose value selects the rules " +
 			"(for example `type`), and `rules`, a map from that value to the rules for it. A value with no entry has no extra rules. " +
+			"Inside a rule the `by` component is always the rule's key, so a `kv` rule counts `type` as 2 characters in its length budget. " +
 			"Every field in a rule is optional.\n\n" +
 			"| Field | Type | Needs | Description |\n" +
 			"|---|---|---|---|\n" +

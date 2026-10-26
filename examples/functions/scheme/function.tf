@@ -42,11 +42,11 @@ locals {
       by = "type"
       rules = {
         # Key Vault: 24 characters, hyphens allowed.
-        #   24 - 5 hyphens - 2 (type) - 3 - 4 - 3 - 4 leaves 3 characters for `name`.
+        #   Inside this rule `type` is always "kv", so it counts as 2 characters
+        #   (not the scheme's 4): 24 - 5 hyphens - 2 - 3 - 4 - 3 - 4 leaves 3 for `name`.
         kv = {
           max_length = 24
           fit        = "name"
-          components = { type = { max_length = 2 } } # tightens the scheme's 4
         }
 
         # Storage account: 3-24 lowercase letters and digits, no hyphens.
@@ -59,7 +59,6 @@ locals {
           min_length = 3
           max_length = 24
           fit        = "name"
-          components = { type = { max_length = 2 } }
         }
       }
     },

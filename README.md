@@ -83,9 +83,9 @@ Each entry applies to one resource type's whole name, in the order below:
 | 2 | `remove` | string | optional | | Regular expression. Every match is deleted from the name, including the template's own text. `"-"` deletes the hyphens. `"[^a-z0-9]"` deletes everything that is not a lowercase letter or digit (the `^` inside the brackets means "not"). It should match single characters. |
 | 3 | `fit` | string | optional | `max_length`, and a placeholder in the template | Names the component that gets the room left under `max_length` (see below). |
 | 4 | `min_length`, `max_length` | number | optional | | Length limits for the finished name. A name outside them is an error. |
-| | `components` | map | optional | placeholders in the template | Per-component `min_length`, `max_length` and `allowed` for this resource type. They can only make the scheme's constraints stricter, never looser: the scheme says `type` is up to 4 characters, a Key Vault says 2. |
+| | `components` | map | optional | placeholders in the template | Per-component `min_length`, `max_length` and `allowed` for this resource type. They can only make the scheme's constraints stricter, never looser: the scheme says `region` is up to 3 characters, a rule could say 2. |
 
-The keys of `rules` are checked too: each must be a valid value for the `by` component (a `type` of at most 2 characters for a Key Vault rule, for instance). Put `allowed` on that component if you want a typo such as `kvv` rejected, because a value with no entry is not an error.
+Inside a rule, the `by` component is always the rule's key, so `type` is `kv` in the Key Vault rule and counts as 2 characters in its length budget, not the scheme's "up to 4". You don't need to repeat that in `components`. The keys of `rules` are checked too: each must be a valid value for the `by` component, so a key that is longer than the scheme allows for it is rejected. Put `allowed` on that component if you want a typo such as `kvv` rejected, because a value with no entry is not an error.
 
 ### Fitting a component into a length limit
 
@@ -95,7 +95,7 @@ Key Vault, 24 characters:
 
 | Part | Characters |
 |---|---|
-| `type` (tightened from 4 to 2 for this type) | 2 |
+| `type` (always `kv` in this rule) | 2 |
 | `system` | 3 |
 | `environment` (longest allowed value) | 4 |
 | `region` | 3 |
@@ -143,7 +143,6 @@ locals {
         kv = {
           max_length = 24
           fit        = "name"
-          components = { type = { max_length = 2 } }
         }
         st = {
           lowercase  = true
@@ -151,7 +150,6 @@ locals {
           min_length = 3
           max_length = 24
           fit        = "name"
-          components = { type = { max_length = 2 } }
         }
       }
     },
