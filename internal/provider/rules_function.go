@@ -30,8 +30,9 @@ func (f *rulesFunction) Definition(_ context.Context, _ function.DefinitionReque
 			"| Field | Description |\n" +
 			"|---|---|\n" +
 			"| `lowercase` | `true` lowercases every part of the name, for resources that only accept lowercase. |\n" +
-			"| `remove` | Regular expression. Every match is deleted from the name, including the template's own text, " +
-			"so `\"[^a-z0-9]\"` keeps only lowercase letters and digits. It should match single characters. |\n" +
+			"| `remove` | Regular expression. Every match is deleted from the name, including the template's own text. " +
+			"`\"-\"` deletes the hyphens; `\"[^a-z0-9]\"` deletes everything that is not a lowercase letter or digit " +
+			"(the `^` inside the brackets means \"not\"). It should match single characters. |\n" +
 			"| `min_length`, `max_length` | Length limits for the finished name. A name outside them is an error. |\n" +
 			"| `fit` | The component that gets the room left under `max_length`. Needs `max_length`. |\n" +
 			"| `components` | Per-component `min_length`, `max_length` and `allowed` for this resource type. " +

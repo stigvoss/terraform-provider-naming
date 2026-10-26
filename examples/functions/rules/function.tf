@@ -38,7 +38,8 @@ locals {
       })
 
       # Storage account: 3-24 lowercase letters and digits, no hyphens.
-      #   `remove` strips the template's hyphens before the budget is calculated,
+      #   `remove` deletes every character that is not a lowercase letter or digit
+      #   (the ^ means "not"), hyphens included, before the budget is calculated,
       #   so `name` gets 24 - 2 - 3 - 4 - 3 - 4 = 8 characters.
       storage_account = provider::naming::rules(local.scheme, {
         lowercase  = true

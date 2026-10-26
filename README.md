@@ -65,7 +65,7 @@ The second argument of `rules`. They apply to one resource type's whole name, in
 | Step | Field | Description |
 |---|---|---|
 | 1 | `lowercase` | `true` lowercases every part of the name. For resources that only accept lowercase, such as storage accounts. |
-| 2 | `remove` | Regular expression. Every match is deleted from the name, including the template's own text, so `"[^a-z0-9]"` keeps only lowercase letters and digits and drops the hyphens. It should match single characters. |
+| 2 | `remove` | Regular expression. Every match is deleted from the name, including the template's own text. `"-"` deletes the hyphens. `"[^a-z0-9]"` deletes everything that is not a lowercase letter or digit (the `^` inside the brackets means "not"). It should match single characters. |
 | 3 | `fit` | Names the component that gets the room left under `max_length` (see below). Needs `max_length`. |
 | 4 | `min_length`, `max_length` | Length limits for the finished name. A name outside them is an error. |
 | | `components` | Per-component `min_length`, `max_length` and `allowed` for this resource type. They can only make the scheme's constraints stricter, never looser: the scheme says `type` is up to 4 characters, a Key Vault says 2. |
@@ -100,7 +100,7 @@ Things to know:
 
 ### Example
 
-A scheme with constraints, and rules for a Key Vault and a storage account. `remove` strips the template's hyphens before the budget is calculated, so for the storage account `name` gets 8 characters.
+A scheme with constraints, and rules for a Key Vault and a storage account. `remove` deletes every character that is not a lowercase letter or digit, hyphens included, before the budget is calculated, so for the storage account `name` gets 8 characters.
 
 ```hcl
 locals {
@@ -136,7 +136,8 @@ locals {
         components = { type = { max_length = 2 } }
       })
 
-      # `remove` strips the template's hyphens before the budget is calculated,
+      # `remove` deletes every character that is not a lowercase letter or digit,
+      # hyphens included, before the budget is calculated,
       # so `name` gets 8 characters in every environment.
       storage_account = provider::naming::rules(local.scheme, {
         lowercase  = true
