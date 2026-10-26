@@ -47,7 +47,7 @@ func TestParseComponents(t *testing.T) {
 		in      attr.Value
 		wantErr string
 	}{
-		{"unknown field", obj(map[string]attr.Value{"name": obj(map[string]attr.Value{"max_lenght": num(3)})}), "unknown field"},
+		{"unknown field", obj(map[string]attr.Value{"name": obj(map[string]attr.Value{"max_lngth": num(3)})}), "unknown field"},
 		{"fractional number", obj(map[string]attr.Value{"name": obj(map[string]attr.Value{"max_length": types.NumberValue(big.NewFloat(2.5))})}), "whole number"},
 		{"wrong type", obj(map[string]attr.Value{"name": obj(map[string]attr.Value{"max_length": types.StringValue("3")})}), "must be a number"},
 		{"hash without truncate", obj(map[string]attr.Value{"name": obj(map[string]attr.Value{"hash": num(2)})}), "only applies"},
