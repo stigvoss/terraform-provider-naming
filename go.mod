@@ -1,6 +1,6 @@
 module github.com/stigvoss/terraform-provider-naming
 
-go 1.27.3
+go 1.25.8
 
 require (
 	github.com/hashicorp/terraform-plugin-docs v0.25.0
