@@ -17,7 +17,7 @@ The optional third argument maps component names to constraints. Every field is 
 | `min_length`, `max_length` | length limits |
 | `allowed` | list of accepted values |
 | `pattern` | regular expression the value must match |
-| `on_too_long` | `"error"` (default) or `"truncate"` for a value over its limit |
+| `overflow` | `"error"` (default) or `"truncate"` for a value over its limit |
 | `hash` | number of hash characters appended when truncating |
 
 ## Example Usage
@@ -43,7 +43,7 @@ locals {
 #   min_length / max_length   length limits
 #   allowed                   list of accepted values
 #   pattern                   regular expression the value must match
-#   on_too_long               "error" (default) or "truncate"
+#   overflow                  "error" (default) or "truncate"
 #   hash                      hash characters appended when truncating
 locals {
   constrained = {
@@ -58,7 +58,7 @@ locals {
       {
         type          = { max_length = 4 }
         system        = { max_length = 3 }
-        name          = { on_too_long = "truncate" }
+        name          = { overflow = "truncate" }
         environment   = { allowed = ["dev", "test", "prod"] }
         region        = { max_length = 3 }
         discriminator = { max_length = 4 }

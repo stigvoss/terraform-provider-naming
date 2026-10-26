@@ -54,7 +54,7 @@ Keyed by placeholder name, in `scheme`. A component with no constraints is unlim
 | `min_length`, `max_length` | length limits |
 | `allowed` | list of accepted values |
 | `pattern` | regular expression the value must match |
-| `on_too_long` | what to do with a value over its limit: `"error"` (default) or `"truncate"` |
+| `overflow` | what to do with a value over its limit: `"error"` (default) or `"truncate"` |
 | `hash` | number of hash characters appended when truncating, so two long values don't collapse into one |
 
 ### Resource type rules
@@ -88,9 +88,9 @@ Key Vault, 24 characters:
 Things to know:
 
 - A component without a declared maximum counts at its actual length. Declare one wherever the name must stay the same across environments.
-- `fit` only sets the limit. Whether an over-long `name` is trimmed or rejected is the component's `on_too_long`:
+- `fit` only sets the limit. Whether an over-long `name` is trimmed or rejected is the component's `overflow`:
 
-| `on_too_long` of the fitted component | `name = "wharf"`, limit 3 |
+| `overflow` of the fitted component | `name = "wharf"`, limit 3 |
 |---|---|
 | `"truncate"` | `wha` |
 | `"error"` (default) | error: `"wharf"` is 5 characters, the limit is 3 |
@@ -114,7 +114,7 @@ locals {
     {
       type          = { max_length = 4 }
       system        = { max_length = 3 }
-      name          = { on_too_long = "truncate" }
+      name          = { overflow = "truncate" }
       environment   = { allowed = ["dev", "test", "prod"] }
       region        = { max_length = 3 }
       discriminator = { max_length = 4 }

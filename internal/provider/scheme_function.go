@@ -32,7 +32,7 @@ func (f *schemeFunction) Definition(_ context.Context, _ function.DefinitionRequ
 			"| `min_length`, `max_length` | length limits |\n" +
 			"| `allowed` | list of accepted values |\n" +
 			"| `pattern` | regular expression the value must match |\n" +
-			"| `on_too_long` | `\"error\"` (default) or `\"truncate\"` for a value over its limit |\n" +
+			"| `overflow` | `\"error\"` (default) or `\"truncate\"` for a value over its limit |\n" +
 			"| `hash` | number of hash characters appended when truncating |",
 		Parameters: []function.Parameter{
 			function.StringParameter{

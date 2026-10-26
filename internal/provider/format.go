@@ -22,7 +22,7 @@ func (t *Template) CheckSpecs(specs map[string]ComponentSpec) error {
 	return nil
 }
 
-// CheckValue validates one value against its spec and applies on_too_long.
+// CheckValue validates one value against its spec and applies overflow.
 func CheckValue(key, value string, s ComponentSpec) (string, error) {
 	if len(s.Allowed) > 0 {
 		found := false
@@ -50,11 +50,11 @@ func CheckValue(key, value string, s ComponentSpec) (string, error) {
 	return value, nil
 }
 
-// truncate shortens v to limit characters per the spec's on_too_long. orig is
+// truncate shortens v to limit characters per the spec's overflow. orig is
 // the value the optional hash is computed from, so a trimmed component stays
 // the same regardless of the other components.
 func truncate(key, v, orig string, limit int, s ComponentSpec) (string, error) {
-	if s.OnTooLong != onTooLongTruncate {
+	if s.Overflow != overflowTruncate {
 		return "", fmt.Errorf("%q is %q (%d characters), the limit is %d", key, v, len(v), limit)
 	}
 	if s.Hash > 0 {

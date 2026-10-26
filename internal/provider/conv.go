@@ -13,17 +13,17 @@ import (
 // Conversions between Terraform values and the specs in spec.go. Specs arrive
 // as dynamically typed objects so that every field can be optional.
 
-var componentFields = []string{"min_length", "max_length", "allowed", "pattern", "on_too_long", "hash"}
+var componentFields = []string{"min_length", "max_length", "allowed", "pattern", "overflow", "hash"}
 var overrideFields = []string{"min_length", "max_length", "allowed"}
 var ruleFields = []string{"lowercase", "remove", "min_length", "max_length", "fit", "components"}
 
 var componentAttrTypes = map[string]attr.Type{
-	"min_length":  types.NumberType,
-	"max_length":  types.NumberType,
-	"allowed":     types.ListType{ElemType: types.StringType},
-	"pattern":     types.StringType,
-	"on_too_long": types.StringType,
-	"hash":        types.NumberType,
+	"min_length": types.NumberType,
+	"max_length": types.NumberType,
+	"allowed":    types.ListType{ElemType: types.StringType},
+	"pattern":    types.StringType,
+	"overflow":   types.StringType,
+	"hash":       types.NumberType,
 }
 
 var overrideAttrTypes = map[string]attr.Type{
@@ -238,7 +238,7 @@ func parseSpec(v attr.Value, allowed []string, what string) (ComponentSpec, erro
 	if s.Pattern, err = attrString(m, "pattern", what); err != nil {
 		return s, err
 	}
-	if s.OnTooLong, err = attrString(m, "on_too_long", what); err != nil {
+	if s.Overflow, err = attrString(m, "overflow", what); err != nil {
 		return s, err
 	}
 	h, err := attrInt(m, "hash", what)
@@ -354,12 +354,12 @@ func ComponentsValue(specs map[string]ComponentSpec) types.Map {
 			hash = &s.Hash
 		}
 		elems[k] = types.ObjectValueMust(componentAttrTypes, map[string]attr.Value{
-			"min_length":  numberOrNull(s.MinLength),
-			"max_length":  numberOrNull(s.MaxLength),
-			"allowed":     stringsOrNull(s.Allowed),
-			"pattern":     stringOrNull(s.Pattern),
-			"on_too_long": stringOrNull(s.OnTooLong),
-			"hash":        numberOrNull(hash),
+			"min_length": numberOrNull(s.MinLength),
+			"max_length": numberOrNull(s.MaxLength),
+			"allowed":    stringsOrNull(s.Allowed),
+			"pattern":    stringOrNull(s.Pattern),
+			"overflow":   stringOrNull(s.Overflow),
+			"hash":       numberOrNull(hash),
 		})
 	}
 	return types.MapValueMust(componentObjType, elems)

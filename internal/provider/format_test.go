@@ -13,7 +13,7 @@ func kvScheme() map[string]ComponentSpec {
 	return map[string]ComponentSpec{
 		"type":          {MaxLength: ip(4)},
 		"system":        {MaxLength: ip(3)},
-		"name":          {OnTooLong: onTooLongTruncate},
+		"name":          {Overflow: overflowTruncate},
 		"environment":   {Allowed: []string{"dev", "test", "prod"}},
 		"region":        {MaxLength: ip(3)},
 		"discriminator": {MaxLength: ip(4)},
@@ -119,20 +119,20 @@ func TestFormatRules(t *testing.T) {
 		{
 			name:     "component cap truncates",
 			template: "{org}-{name}", static: map[string]string{"org": "acme"}, call: map[string]string{"name": "abcdefghij"},
-			comps: map[string]ComponentSpec{"name": {MaxLength: ip(4), OnTooLong: onTooLongTruncate}},
+			comps: map[string]ComponentSpec{"name": {MaxLength: ip(4), Overflow: overflowTruncate}},
 			want:  "acme-abcd",
 		},
 		{
 			name:     "hash suffix comes from the component only",
 			template: "{env}-{name}", call: map[string]string{"env": "dev", "name": "abcdefghij"},
-			comps: map[string]ComponentSpec{"name": {MaxLength: ip(5), OnTooLong: onTooLongTruncate, Hash: 2}},
+			comps: map[string]ComponentSpec{"name": {MaxLength: ip(5), Overflow: overflowTruncate, Hash: 2}},
 			rules: Rules{},
 			want:  "dev-abc" + sha2("abcdefghij", 2),
 		},
 		{
 			name:     "unbounded component counts at actual length",
 			template: "{env}-{name}", call: map[string]string{"env": "dev", "name": "abcdefghij"},
-			comps: map[string]ComponentSpec{"name": {OnTooLong: onTooLongTruncate}},
+			comps: map[string]ComponentSpec{"name": {Overflow: overflowTruncate}},
 			rules: Rules{MaxLength: ip(8), Fit: "name"},
 			want:  "dev-abcd",
 		},
@@ -157,7 +157,7 @@ func TestFormatRules(t *testing.T) {
 		{
 			name:     "repeated fit component splits the budget",
 			template: "{name}-{name}", call: map[string]string{"name": "abcdefgh"},
-			comps: map[string]ComponentSpec{"name": {OnTooLong: onTooLongTruncate}},
+			comps: map[string]ComponentSpec{"name": {Overflow: overflowTruncate}},
 			rules: Rules{MaxLength: ip(9), Fit: "name"},
 			want:  "abcd-abcd",
 		},
@@ -186,6 +186,6 @@ func TestFormatRules(t *testing.T) {
 }
 
 func sha2(s string, n int) string {
-	v, _ := truncate("x", strings.Repeat("a", n+1), s, n+1, ComponentSpec{OnTooLong: onTooLongTruncate, Hash: n})
+	v, _ := truncate("x", strings.Repeat("a", n+1), s, n+1, ComponentSpec{Overflow: overflowTruncate, Hash: n})
 	return v[1:]
 }

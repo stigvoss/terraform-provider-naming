@@ -7,8 +7,8 @@ import (
 )
 
 const (
-	onTooLongError    = "error"
-	onTooLongTruncate = "truncate"
+	overflowError    = "error"
+	overflowTruncate = "truncate"
 )
 
 // ComponentSpec constrains one template component. Every field is optional;
@@ -18,7 +18,7 @@ type ComponentSpec struct {
 	MaxLength *int
 	Allowed   []string
 	Pattern   string // regular expression the whole value must match
-	OnTooLong string // onTooLongError (default) or onTooLongTruncate
+	Overflow  string // overflowError (default) or overflowTruncate
 	Hash      int    // hex characters of a hash of the original value appended when truncating
 }
 
@@ -47,10 +47,10 @@ func (c ComponentSpec) Validate() error {
 	if c.Hash < 0 {
 		return fmt.Errorf("hash must not be negative")
 	}
-	switch c.OnTooLong {
-	case "", onTooLongError, onTooLongTruncate:
+	switch c.Overflow {
+	case "", overflowError, overflowTruncate:
 	default:
-		return fmt.Errorf("on_too_long must be %q or %q, got %q", onTooLongError, onTooLongTruncate, c.OnTooLong)
+		return fmt.Errorf("overflow must be %q or %q, got %q", overflowError, overflowTruncate, c.Overflow)
 	}
 	if c.Pattern != "" {
 		if _, err := regexp.Compile(c.Pattern); err != nil {

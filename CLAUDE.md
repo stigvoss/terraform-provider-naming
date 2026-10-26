@@ -43,7 +43,7 @@ function argument. Share it across configurations via a module output.
 - Validates template syntax, that every `static` key is used, and the optional component
   constraints; returns `{ template, static, components }` for `format`.
 - Component spec fields (all optional, unlimited by default): `min_length`, `max_length`,
-  `allowed`, `pattern`, `on_too_long` (`error` default | `truncate`), `hash`.
+  `allowed`, `pattern`, `overflow` (`error` default | `truncate`), `hash`.
 - Unknown inputs yield an unknown result; whatever is known is still validated.
 
 ### Function `rules(scheme, rules)`

@@ -42,7 +42,7 @@ locals {
     {
       type          = { max_length = 4 }
       system        = { max_length = 3 }
-      name          = { on_too_long = "truncate" }
+      name          = { overflow = "truncate" }
       environment   = { allowed = ["dev", "test", "prod"] }
       region        = { max_length = 3 }
       discriminator = { max_length = 4 }
