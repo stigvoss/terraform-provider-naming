@@ -1,9 +1,15 @@
-# One scheme for every resource type. Each component declares its largest
-# possible length, which is what makes the budget for `name` predictable.
+# The module-wide values (system, environment, region, discriminator) belong to
+# the scheme. Each component also declares its largest possible length, which is
+# what makes the budget for `name` predictable.
 locals {
   scheme = provider::naming::scheme(
     "{type}-{system}-{name}-{environment}-{region}-{discriminator}",
-    {},
+    {
+      system        = "lis"
+      environment   = "dev"
+      region        = "weu"
+      discriminator = "b73a"
+    },
     {
       type          = { max_length = 4 }
       system        = { max_length = 3 }
@@ -44,20 +50,13 @@ locals {
       })
     }
   }
-
-  parts = {
-    system        = "lis"
-    environment   = "dev"
-    region        = "weu"
-    discriminator = "b73a"
-  }
 }
 
 # kv-lis-wha-dev-weu-b73a
 output "key_vault_name" {
   value = provider::naming::format(
     local.naming.scheme,
-    merge(local.parts, { type = "kv", name = "wharf" }),
+    { type = "kv", name = "wharf" },
     local.naming.rules.key_vault,
   )
 }
@@ -66,7 +65,7 @@ output "key_vault_name" {
 output "storage_account_name" {
   value = provider::naming::format(
     local.naming.scheme,
-    merge(local.parts, { type = "st", name = "datalake" }),
+    { type = "st", name = "datalake" },
     local.naming.rules.storage_account,
   )
 }

@@ -48,7 +48,12 @@ Resource types have different naming rules (an Azure storage account allows only
 locals {
   scheme = provider::naming::scheme(
     "{type}-{system}-{name}-{environment}-{region}-{discriminator}",
-    {},
+    {
+      system        = "lis"
+      environment   = "dev"
+      region        = "weu"
+      discriminator = "b73a"
+    },
     {
       type          = { max_length = 4 }
       system        = { max_length = 3 }
@@ -90,28 +95,14 @@ locals {
 # kv-lis-wha-dev-weu-b73a  (24 - 5 hyphens - 2 - 3 - 4 - 3 - 4 leaves 3 characters for name)
 provider::naming::format(
   local.naming.scheme,
-  {
-    type          = "kv"
-    system        = "lis"
-    name          = "wharf"
-    environment   = "dev"
-    region        = "weu"
-    discriminator = "b73a"
-  },
+  { type = "kv", name = "wharf" },
   local.naming.rules.key_vault,
 )
 
 # stlisdatalakedevweub73a
 provider::naming::format(
   local.naming.scheme,
-  {
-    type          = "st"
-    system        = "lis"
-    name          = "datalake"
-    environment   = "dev"
-    region        = "weu"
-    discriminator = "b73a"
-  },
+  { type = "st", name = "datalake" },
   local.naming.rules.storage_account,
 )
 ```

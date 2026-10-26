@@ -13,6 +13,7 @@ locals {
 }
 
 # Constraints per component are optional. A component without any is unlimited.
+# Static values are checked against them when the scheme is defined.
 #
 #   min_length / max_length   length limits
 #   allowed                   list of accepted values
@@ -23,7 +24,12 @@ locals {
   constrained = {
     scheme = provider::naming::scheme(
       "{type}-{system}-{name}-{environment}-{region}-{discriminator}",
-      {},
+      {
+        system        = "lis"
+        environment   = "dev"
+        region        = "weu"
+        discriminator = "b73a"
+      },
       {
         type          = { max_length = 4 }
         system        = { max_length = 3 }
