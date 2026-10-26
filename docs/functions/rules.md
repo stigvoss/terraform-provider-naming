@@ -16,13 +16,15 @@ Checks:
 - `components` overrides only tighten the scheme's constraints;
 - the `fit` component has room under `max_length`.
 
-| Field | Description |
-|---|---|
-| `lowercase` | `true` lowercases every part of the name, for resources that only accept lowercase. |
-| `remove` | Regular expression. Every match is deleted from the name, including the template's own text. `"-"` deletes the hyphens; `"[^a-z0-9]"` deletes everything that is not a lowercase letter or digit (the `^` inside the brackets means "not"). It should match single characters. |
-| `min_length`, `max_length` | Length limits for the finished name. A name outside them is an error. |
-| `fit` | The component that gets the room left under `max_length`. Needs `max_length`. |
-| `components` | Per-component `min_length`, `max_length` and `allowed` for this resource type. They can only be stricter than the scheme's, never looser. |
+Every field is optional.
+
+| Field | Type | Needs | Description |
+|---|---|---|---|
+| `lowercase` | bool | | `true` lowercases every part of the name, for resources that only accept lowercase. |
+| `remove` | string | | Regular expression. Every match is deleted from the name, including the template's own text. `"-"` deletes the hyphens; `"[^a-z0-9]"` deletes everything that is not a lowercase letter or digit (the `^` inside the brackets means "not"). It should match single characters. |
+| `min_length`, `max_length` | number | | Length limits for the finished name. A name outside them is an error. |
+| `fit` | string | `max_length`, and a placeholder in the template | The component that gets the room left under `max_length`. |
+| `components` | map | placeholders in the template | Per-component `min_length`, `max_length` and `allowed` for this resource type. They can only be stricter than the scheme's, never looser. |
 
 ## Example Usage
 

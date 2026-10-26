@@ -12,14 +12,14 @@ Checks the template syntax, that every `static` key is used by the template, and
 
 The optional third argument maps component names to constraints. Every field is optional, and a component without constraints is unlimited.
 
-| Field | Description |
-|---|---|
-| `min_length` | Shortest accepted value. Shorter values are rejected. |
-| `max_length` | Longest accepted value. Longer values are rejected, or cut to this length if `overflow = "truncate"`. Also the component's declared maximum when a `fit` budget is calculated. |
-| `allowed` | The only accepted values, e.g. `["dev", "test", "prod"]`. The longest entry is the declared maximum length. |
-| `pattern` | Regular expression the whole value must match, e.g. `"^[a-z]+$"`. |
-| `overflow` | What happens to a value longer than its limit: `"error"` (default) rejects it, `"truncate"` cuts it to the limit. |
-| `hash` | With `overflow = "truncate"`: number of hex characters of a hash of the original value appended to the cut value, so long values that start the same stay distinct. Taken from this component's value only, so it is the same in every environment. |
+| Field | Type | Required | Needs | Description |
+|---|---|---|---|---|
+| `min_length` | number | optional | | Shortest accepted value. Shorter values are rejected. |
+| `max_length` | number | optional | | Longest accepted value. Longer values are rejected, or cut to this length if `overflow = "truncate"`. Also the component's declared maximum when a `fit` budget is calculated. |
+| `allowed` | list of strings | optional | | The only accepted values, e.g. `["dev", "test", "prod"]`. The longest entry is the declared maximum length. |
+| `pattern` | string | optional | | Regular expression the whole value must match, e.g. `"^[a-z]+$"`. |
+| `overflow` | string | optional | a limit (`max_length`, or being the `fit` component) | What happens to a value longer than its limit: `"error"` (default) rejects it, `"truncate"` cuts it to the limit. |
+| `hash` | number | optional | `overflow = "truncate"` | Number of hex characters of a hash of the original value appended to the cut value, so long values that start the same stay distinct. Taken from this component's value only, so it is the same in every environment. |
 
 ## Example Usage
 
