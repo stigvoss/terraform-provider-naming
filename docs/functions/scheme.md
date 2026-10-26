@@ -39,14 +39,14 @@ locals {
 locals {
   constrained = {
     scheme = provider::naming::scheme(
-      "{type}-{system}-{name}-{environment}-{location}-{discriminator}",
+      "{type}-{system}-{name}-{environment}-{region}-{discriminator}",
       {},
       {
         type          = { max_length = 4 }
         system        = { max_length = 3 }
         name          = { on_too_long = "truncate" }
         environment   = { allowed = ["dev", "test", "prod"] }
-        location      = { max_length = 3 }
+        region        = { max_length = 3 }
         discriminator = { max_length = 4 }
       },
     )

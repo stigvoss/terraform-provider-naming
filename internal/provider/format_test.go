@@ -7,7 +7,7 @@ import (
 
 func ip(n int) *int { return &n }
 
-const kvTemplate = "{type}-{system}-{name}-{environment}-{location}-{discriminator}"
+const kvTemplate = "{type}-{system}-{name}-{environment}-{region}-{discriminator}"
 
 func kvScheme() map[string]ComponentSpec {
 	return map[string]ComponentSpec{
@@ -15,7 +15,7 @@ func kvScheme() map[string]ComponentSpec {
 		"system":        {MaxLength: ip(3)},
 		"name":          {OnTooLong: onTooLongTruncate},
 		"environment":   {Allowed: []string{"dev", "test", "prod"}},
-		"location":      {MaxLength: ip(3)},
+		"region":        {MaxLength: ip(3)},
 		"discriminator": {MaxLength: ip(4)},
 	}
 }
@@ -29,7 +29,7 @@ func kvRules() Rules {
 }
 
 func kvCall(env, name string) map[string]string {
-	return map[string]string{"type": "kv", "system": "lis", "name": name, "environment": env, "location": "weu", "discriminator": "b73a"}
+	return map[string]string{"type": "kv", "system": "lis", "name": name, "environment": env, "region": "weu", "discriminator": "b73a"}
 }
 
 func TestFormatKeyVault(t *testing.T) {

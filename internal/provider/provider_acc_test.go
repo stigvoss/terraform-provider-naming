@@ -79,14 +79,14 @@ func TestAccSchemeFunctionErrors(t *testing.T) {
 const testAccKeyVault = `
 locals {
   naming = provider::naming::scheme(
-    "{type}-{system}-{name}-{environment}-{location}-{discriminator}",
+    "{type}-{system}-{name}-{environment}-{region}-{discriminator}",
     {},
     {
       type               = { max_length = 4 }
       system      = { max_length = 3 }
       name               = { on_too_long = "truncate" }
       environment = { allowed = ["dev", "test", "prod"] }
-      location    = { max_length = 3 }
+      region    = { max_length = 3 }
       discriminator      = { max_length = 4 }
     },
   )
@@ -97,7 +97,7 @@ locals {
     components = { type = { max_length = 2 } }
   })
 
-  parts = { type = "kv", system = "lis", location = "weu", discriminator = "b73a" }
+  parts = { type = "kv", system = "lis", region = "weu", discriminator = "b73a" }
 }
 
 output "dev"  { value = provider::naming::format(local.naming, merge(local.parts, { name = "wharf", environment = "dev" }), local.key_vault) }
