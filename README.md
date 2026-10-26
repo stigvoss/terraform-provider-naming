@@ -39,6 +39,35 @@ make generate    # regenerate docs with tfplugindocs
 make lint
 ```
 
+### Trying it locally
+
+Use a [development override](https://developer.hashicorp.com/terraform/cli/config/config-file#development-overrides-for-provider-developers)
+to run your own configurations against a local build, without publishing or running `terraform init`.
+
+1. Build the provider into a folder:
+
+   ```sh
+   go build -o ~/terraform-dev/terraform-provider-naming .
+   ```
+
+2. Create `~/terraform-dev/dev.tfrc`:
+
+   ```hcl
+   provider_installation {
+     dev_overrides { "stigvoss/naming" = "/Users/<you>/terraform-dev" }
+     direct {}
+   }
+   ```
+
+3. In a configuration that declares `naming` in `required_providers` (see [examples/](examples/)), point Terraform at that file:
+
+   ```sh
+   TF_CLI_CONFIG_FILE=~/terraform-dev/dev.tfrc terraform plan
+   ```
+
+Terraform warns that the provider is overridden; that is expected. Rebuild after every code change.
+Setting `TF_CLI_CONFIG_FILE` per command leaves your `~/.terraformrc` untouched.
+
 ## Releasing
 
 Pushing a `v*` tag runs [GoReleaser](.goreleaser.yml) and publishes signed release artifacts.
