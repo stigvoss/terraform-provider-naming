@@ -1,7 +1,7 @@
 # terraform-provider-naming
 
 A Terraform provider whose only job is to name resources from one central template.
-It has no resources and no data sources, only three [provider-defined functions](https://developer.hashicorp.com/terraform/language/functions#provider-defined-functions).
+It has no resources and no data sources, only two [provider-defined functions](https://developer.hashicorp.com/terraform/language/functions#provider-defined-functions).
 Requires Terraform **1.8+**.
 
 ```hcl
@@ -30,34 +30,32 @@ resource "azurerm_resource_group" "rg" {
 }
 ```
 
-- `scheme(template, static, components?)` validates the template and optional per-component constraints, and returns the config object. Mistakes show up where the scheme is defined.
-- `rules(scheme, rules)` validates per-resource-type rules against a scheme and returns them.
-- `format(scheme, variables, rules?)` fills the template with the static values plus the variable parts, and errors on a missing placeholder, an extra key, a call key that overrides a static one, or a constraint violation.
+- `scheme(template, static, components?, rules?)` defines everything about a naming scheme: the template, the shared values, optional per-component constraints and optional per-resource-type rules. It validates all of it, so mistakes show up where the scheme is defined.
+- `format(scheme, variables)` fills the template with the static values plus the variable parts, and errors on a missing placeholder, an extra key, a call key that overrides a static one, or a constraint violation.
 
 ## Constraints
 
 Resource types have different naming rules. A storage account allows only lowercase letters and digits and 3-24 characters; a Key Vault allows 24 characters including hyphens. Everything below is optional.
 
-There are two places to set constraints:
+There are two places to set constraints, both in `scheme`:
 
-| Where | Applies to | Set with |
+| Where | Applies to | Argument |
 |---|---|---|
-| **Component constraints** | one placeholder, for every resource type | the third argument of `scheme` |
-| **Resource type rules** | the whole name, for one resource type | `rules`, passed as the third argument of `format` |
+| **Component constraints** | one placeholder, for every resource type | the third argument |
+| **Resource type rules** | the whole name, for one resource type | the fourth argument |
 
 ### Function arguments
 
 | Function | Required | Optional |
 |---|---|---|
-| `scheme` | `template`, `static` (`{}` for none) | `components` |
-| `rules` | the scheme, the rules object | |
-| `format` | the scheme, `variables` | `rules` |
+| `scheme` | `template`, `static` (`{}` for none) | `components`, `rules` (pass `{}` for `components` to set only `rules`) |
+| `format` | the scheme, `variables` | |
 
 Every field inside `components` and `rules` is optional. The **Needs** columns below list what a field depends on. An unknown field name is an error, so a typo is caught rather than ignored.
 
 ### Component constraints
 
-Keyed by placeholder name, in the third argument of `scheme`. A component with no constraints (`{}`) is unlimited. Static values are checked when the scheme is defined, variables on every `format` call.
+Keyed by placeholder name. A component with no constraints (`{}`) is unlimited. Static values are checked when the scheme is defined, variables on every `format` call.
 
 | Field | Type | Required | Needs | Description |
 |---|---|---|---|---|
@@ -70,7 +68,14 @@ Keyed by placeholder name, in the third argument of `scheme`. A component with n
 
 ### Resource type rules
 
-The second argument of `rules`. They apply to one resource type's whole name, in the order below.
+An object with two fields:
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `by` | string | required | The placeholder whose value selects the rules, usually the resource type abbreviation (`type`). It must be in the template. |
+| `rules` | map | optional | Rules per value of `by`, for example `kv` and `st`. A value with no entry has no extra rules, so only the types that need them have to be listed. |
+
+Each entry applies to one resource type's whole name, in the order below:
 
 | Step | Field | Type | Required | Needs | Description |
 |---|---|---|---|---|---|
@@ -79,6 +84,8 @@ The second argument of `rules`. They apply to one resource type's whole name, in
 | 3 | `fit` | string | optional | `max_length`, and a placeholder in the template | Names the component that gets the room left under `max_length` (see below). |
 | 4 | `min_length`, `max_length` | number | optional | | Length limits for the finished name. A name outside them is an error. |
 | | `components` | map | optional | placeholders in the template | Per-component `min_length`, `max_length` and `allowed` for this resource type. They can only make the scheme's constraints stricter, never looser: the scheme says `type` is up to 4 characters, a Key Vault says 2. |
+
+The keys of `rules` are checked too: each must be a valid value for the `by` component (a `type` of at most 2 characters for a Key Vault rule, for instance). Put `allowed` on that component if you want a typo such as `kvv` rejected, because a value with no entry is not an error.
 
 ### Fitting a component into a length limit
 
@@ -106,15 +113,15 @@ Things to know:
 | `"truncate"` | `wha` |
 | `"error"` (default) | error: `"wharf"` is 5 characters, the limit is 3 |
 
-- If the other components leave no room at all, `rules` reports it up front.
+- If the other components leave no room at all, `scheme` reports it when the scheme is defined.
 
 ### Example
 
-A scheme with constraints, and rules for a Key Vault and a storage account. `remove` deletes every character that is not a lowercase letter or digit, hyphens included, before the budget is calculated, so for the storage account `name` gets 8 characters.
+A scheme with component constraints and rules for a Key Vault and a storage account. For the storage account, `remove` deletes every character that is not a lowercase letter or digit, hyphens included, before the budget is calculated, so `name` gets 8 characters.
 
 ```hcl
 locals {
-  scheme = provider::naming::scheme(
+  naming = provider::naming::scheme(
     "{type}-{system}-{name}-{environment}-{region}-{discriminator}",
     {
       system        = "lis"
@@ -130,50 +137,35 @@ locals {
       region        = { max_length = 3 }
       discriminator = { max_length = 4 }
     },
+    {
+      by = "type"
+      rules = {
+        kv = {
+          max_length = 24
+          fit        = "name"
+          components = { type = { max_length = 2 } }
+        }
+        st = {
+          lowercase  = true
+          remove     = "[^a-z0-9]"
+          min_length = 3
+          max_length = 24
+          fit        = "name"
+          components = { type = { max_length = 2 } }
+        }
+      }
+    },
   )
 }
 
-# A local cannot reference itself, so the scheme is built above and collected here.
-# In a shared module, `scheme` and `rules` would be outputs.
-locals {
-  naming = {
-    scheme = local.scheme
-
-    rules = {
-      key_vault = provider::naming::rules(local.scheme, {
-        max_length = 24
-        fit        = "name"
-        components = { type = { max_length = 2 } }
-      })
-
-      # `remove` deletes every character that is not a lowercase letter or digit,
-      # hyphens included, before the budget is calculated,
-      # so `name` gets 8 characters in every environment.
-      storage_account = provider::naming::rules(local.scheme, {
-        lowercase  = true
-        remove     = "[^a-z0-9]"
-        min_length = 3
-        max_length = 24
-        fit        = "name"
-        components = { type = { max_length = 2 } }
-      })
-    }
-  }
-}
-
-# kv-lis-wha-dev-weu-b73a  (24 - 5 hyphens - 2 - 3 - 4 - 3 - 4 leaves 3 characters for name)
-provider::naming::format(
-  local.naming.scheme,
-  { type = "kv", name = "wharf" },
-  local.naming.rules.key_vault,
-)
+# kv-lis-wha-dev-weu-b73a
+provider::naming::format(local.naming, { type = "kv", name = "wharf" })
 
 # stlisdatalakedevweub73a
-provider::naming::format(
-  local.naming.scheme,
-  { type = "st", name = "datalake" },
-  local.naming.rules.storage_account,
-)
+provider::naming::format(local.naming, { type = "st", name = "datalake" })
+
+# rg-lis-network-dev-weu-b73a (no rules for rg, so only the component constraints apply)
+provider::naming::format(local.naming, { type = "rg", name = "network" })
 ```
 
 Provider functions cannot read provider configuration, so the template is passed as an argument rather than set in a `provider` block. Share one scheme across configurations with a module output.

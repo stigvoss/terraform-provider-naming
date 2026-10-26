@@ -80,28 +80,29 @@ const testTFKeyVault = `
 locals {
   naming = provider::naming::scheme(
     "{type}-{system}-{name}-{environment}-{region}-{discriminator}",
-    {},
+    { system = "lis", region = "weu", discriminator = "b73a" },
     {
-      type               = { max_length = 4 }
-      system      = { max_length = 3 }
-      name               = { overflow = "truncate" }
-      environment = { allowed = ["dev", "test", "prod"] }
-      region    = { max_length = 3 }
-      discriminator      = { max_length = 4 }
+      type          = { max_length = 4 }
+      system        = { max_length = 3 }
+      name          = { overflow = "truncate" }
+      environment   = { allowed = ["dev", "test", "prod"] }
+      region        = { max_length = 3 }
+      discriminator = { max_length = 4 }
+    },
+    {
+      by = "type"
+      rules = {
+        kv = { max_length = 24, fit = "name", components = { type = { max_length = 2 } } }
+        st = { lowercase = true, remove = "[^a-z0-9]", min_length = 3, max_length = 24, fit = "name", components = { type = { max_length = 2 } } }
+      }
     },
   )
-
-  key_vault = provider::naming::rules(local.naming, {
-    max_length = 24
-    fit        = "name"
-    components = { type = { max_length = 2 } }
-  })
-
-  parts = { type = "kv", system = "lis", region = "weu", discriminator = "b73a" }
 }
 
-output "dev"  { value = provider::naming::format(local.naming, merge(local.parts, { name = "wharf", environment = "dev" }), local.key_vault) }
-output "prod" { value = provider::naming::format(local.naming, merge(local.parts, { name = "wharf", environment = "prod" }), local.key_vault) }
+output "kv_dev"  { value = provider::naming::format(local.naming, { type = "kv", name = "wharf", environment = "dev" }) }
+output "kv_prod" { value = provider::naming::format(local.naming, { type = "kv", name = "wharf", environment = "prod" }) }
+output "st_dev"  { value = provider::naming::format(local.naming, { type = "st", name = "datalakeextra", environment = "dev" }) }
+output "rg"      { value = provider::naming::format(local.naming, { type = "rg", name = "network", environment = "dev" }) }
 `
 
 func TestTerraformKeyVault(t *testing.T) {
@@ -112,39 +113,61 @@ func TestTerraformKeyVault(t *testing.T) {
 			{
 				Config: testTFKeyVault,
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckOutput("dev", "kv-lis-wha-dev-weu-b73a"),
-					resource.TestCheckOutput("prod", "kv-lis-wha-prod-weu-b73a"),
+					resource.TestCheckOutput("kv_dev", "kv-lis-wha-dev-weu-b73a"),
+					resource.TestCheckOutput("kv_prod", "kv-lis-wha-prod-weu-b73a"),
+					resource.TestCheckOutput("st_dev", "stlisdatalakedevweub73a"),
+					// No rules for this type: only the scheme's constraints apply.
+					resource.TestCheckOutput("rg", "rg-lis-network-dev-weu-b73a"),
 				),
 			},
 		},
 	})
 }
 
-func TestTerraformRulesAndComponentErrors(t *testing.T) {
-	scheme := `provider::naming::scheme("{type}-{env}-{name}", {}, { env = { allowed = ["dev", "prod"] }, type = { max_length = 4 } })`
-	cfg := func(body string) string {
-		return `locals { naming = ` + scheme + ` }
-` + body
+func TestTerraformRulesErrors(t *testing.T) {
+	cfg := func(rules string) string {
+		return `output "x" { value = provider::naming::scheme(
+  "{type}-{env}-{name}",
+  {},
+  { env = { allowed = ["dev", "prod"] }, type = { max_length = 4 } },
+  ` + rules + `,
+) }`
 	}
 	resource.UnitTest(t, resource.TestCase{
 		TerraformVersionChecks:   []tfversion.TerraformVersionCheck{tfversion.SkipBelow(tfversion.Version1_8_0)},
 		ProtoV6ProviderFactories: testTFProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
-				Config:      cfg(`output "x" { value = provider::naming::format(local.naming, { type = "kv", env = "staging", name = "a" }) }`),
-				ExpectError: regexp.MustCompile(`not\s+one\s+of\s+the\s+allowed`),
-			},
-			{
-				Config:      cfg(`output "x" { value = provider::naming::rules(local.naming, { components = { type = { max_length = 9 } } }) }`),
+				Config:      cfg(`{ by = "type", rules = { kv = { components = { type = { max_length = 9 } } } } }`),
 				ExpectError: regexp.MustCompile(`looser`),
 			},
 			{
-				Config:      cfg(`output "x" { value = provider::naming::rules(local.naming, { fit = "name", max_length = 8 }) }`),
+				Config:      cfg(`{ by = "type", rules = { kv = { fit = "name", max_length = 5 } } }`),
 				ExpectError: regexp.MustCompile(`no\s+room`),
 			},
 			{
-				Config:      cfg(`output "x" { value = provider::naming::rules(local.naming, { lowercse = true }) }`),
+				Config:      cfg(`{ by = "type", rules = { kv = { lowercse = true } } }`),
 				ExpectError: regexp.MustCompile(`unknown\s+field`),
+			},
+			{
+				Config:      cfg(`{ by = "region", rules = {} }`),
+				ExpectError: regexp.MustCompile(`not\s+used\s+by\s+the\s+template`),
+			},
+			{
+				Config:      cfg(`{ rules = {} }`),
+				ExpectError: regexp.MustCompile(`by\s+is\s+required`),
+			},
+			{
+				// The key must itself be a valid value for the selecting component.
+				Config:      cfg(`{ by = "type", rules = { keyvault = { max_length = 24 } } }`),
+				ExpectError: regexp.MustCompile(`not\s+a\s+valid\s+type`),
+			},
+			{
+				Config: `output "x" { value = provider::naming::format(
+  provider::naming::scheme("{env}-{name}", {}, { env = { allowed = ["dev", "prod"] } }),
+  { env = "staging", name = "a" },
+) }`,
+				ExpectError: regexp.MustCompile(`not\s+one\s+of\s+the\s+allowed`),
 			},
 			{
 				Config:      `output "x" { value = provider::naming::scheme("{a}", {}, { b = { max_length = 3 } }) }`,
@@ -183,15 +206,15 @@ resource "terraform_data" "env" {
 
 locals {
   naming = provider::naming::scheme(
-    "{env}-{name}",
+    "{type}-{env}-{name}",
     { env = terraform_data.env.output },
     { env = { allowed = ["dev", "prod"], max_length = 4 } },
+    { by = "type", rules = { kv = { lowercase = true, max_length = 10, fit = "name" } } },
   )
-  rules = provider::naming::rules(local.naming, { lowercase = true, max_length = 10, fit = "name" })
 }
 
 output "static_unknown" {
-  value = provider::naming::format(local.naming, { name = "a" }, local.rules)
+  value = provider::naming::format(local.naming, { type = "kv", name = "a" })
 }
 
 output "variable_unknown" {
@@ -202,7 +225,7 @@ output "variable_unknown" {
 }
 `,
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckOutput("static_unknown", "dev-a"),
+					resource.TestCheckOutput("static_unknown", "kv-dev-a"),
 					resource.TestCheckOutput("variable_unknown", "dev-b"),
 				),
 			},

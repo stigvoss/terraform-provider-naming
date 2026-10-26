@@ -16,6 +16,7 @@ import (
 
 var componentFields = []string{"min_length", "max_length", "allowed", "pattern", "overflow", "hash"}
 var overrideFields = []string{"min_length", "max_length", "allowed"}
+var rulesetFields = []string{"by", "rules"}
 var ruleFields = []string{"lowercase", "remove", "min_length", "max_length", "fit", "components"}
 
 var componentAttrTypes = map[string]attr.Type{
@@ -36,11 +37,19 @@ var overrideAttrTypes = map[string]attr.Type{
 var componentObjType = types.ObjectType{AttrTypes: componentAttrTypes}
 var overrideObjType = types.ObjectType{AttrTypes: overrideAttrTypes}
 
+var rulesObjType = types.ObjectType{AttrTypes: rulesAttrTypes}
+
+var rulesetAttrTypes = map[string]attr.Type{
+	"by":    types.StringType,
+	"rules": types.MapType{ElemType: rulesObjType},
+}
+
 // schemeAttrTypes is the shape of scheme's result and format's config parameter.
 var schemeAttrTypes = map[string]attr.Type{
 	"template":   types.StringType,
 	"static":     types.MapType{ElemType: types.StringType},
 	"components": types.MapType{ElemType: componentObjType},
+	"rules":      types.ObjectType{AttrTypes: rulesetAttrTypes},
 }
 
 var rulesAttrTypes = map[string]attr.Type{
@@ -383,5 +392,70 @@ func RulesValue(r Rules) types.Object {
 		"max_length": numberOrNull(r.MaxLength),
 		"fit":        stringOrNull(r.Fit),
 		"components": types.MapValueMust(overrideObjType, comps),
+	})
+}
+
+// Ruleset holds the per-resource-type rules of a scheme, keyed by the value
+// of one placeholder (By), for example the resource type abbreviation.
+type Ruleset struct {
+	By    string
+	Rules map[string]Rules
+}
+
+// For returns the rules for a selector value. A value with no entry has no
+// extra rules.
+func (rs Ruleset) For(value string) Rules { return rs.Rules[value] }
+
+// ParseRuleset reads the fourth argument of scheme. A null value means no rules.
+func ParseRuleset(v attr.Value) (Ruleset, error) {
+	var rs Ruleset
+	if v == nil || unwrap(v).IsNull() {
+		return rs, nil
+	}
+	m, err := fields(v, "rules")
+	if err != nil {
+		return rs, err
+	}
+	if err := checkFields(m, rulesetFields, "rules"); err != nil {
+		return rs, err
+	}
+	if rs.By, err = attrString(m, "by", "rules"); err != nil {
+		return rs, err
+	}
+	if rs.By == "" {
+		return rs, fmt.Errorf("rules.by is required: name the placeholder whose value selects the rules")
+	}
+	rm, ok := m["rules"]
+	if !ok || unwrap(rm).IsNull() {
+		return rs, nil
+	}
+	entries, err := fields(rm, "rules.rules")
+	if err != nil {
+		return rs, err
+	}
+	rs.Rules = make(map[string]Rules, len(entries))
+	for k, e := range entries {
+		r, err := ParseRules(e)
+		if err != nil {
+			return rs, fmt.Errorf("rules for %q: %w", k, err)
+		}
+		rs.Rules[k] = r
+	}
+	return rs, nil
+}
+
+// RulesetValue converts a ruleset to the normalized, fully typed value scheme
+// returns. No ruleset is a null object.
+func RulesetValue(rs Ruleset) types.Object {
+	if rs.By == "" {
+		return types.ObjectNull(rulesetAttrTypes)
+	}
+	entries := make(map[string]attr.Value, len(rs.Rules))
+	for k, r := range rs.Rules {
+		entries[k] = RulesValue(r)
+	}
+	return types.ObjectValueMust(rulesetAttrTypes, map[string]attr.Value{
+		"by":    types.StringValue(rs.By),
+		"rules": types.MapValueMust(rulesObjType, entries),
 	})
 }

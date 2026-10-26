@@ -23,7 +23,8 @@ func (f *formatFunction) Definition(_ context.Context, _ function.DefinitionRequ
 		Summary: "Render a resource name from a naming scheme",
 		Description: "Fills the scheme's template with its static values plus the variable parts in `variables`, " +
 			"checking each component against the scheme's constraints. Define the scheme once with `scheme` and pass it to every call.\n\n" +
-			"The optional third argument holds per-resource-type rules, as returned by `rules`. They are applied in this order:\n\n" +
+			"If the scheme has resource type rules, the rules for the value of its `by` component (for example `type`) are applied " +
+			"in this order:\n\n" +
 			"1. `lowercase`: lowercase every part of the name.\n" +
 			"2. `remove`: delete every character matching a regular expression, template text included.\n" +
 			"3. `fit`: give one component the room left under `max_length`. The room is calculated from the declared " +
@@ -32,7 +33,7 @@ func (f *formatFunction) Definition(_ context.Context, _ function.DefinitionRequ
 		Parameters: []function.Parameter{
 			function.ObjectParameter{
 				Name:               "config",
-				Description:        "A scheme, as returned by `scheme`.",
+				Description:        "A scheme, as returned by `scheme`, including any resource type rules.",
 				AttributeTypes:     schemeAttrTypes,
 				AllowUnknownValues: true,
 			},
@@ -43,12 +44,6 @@ func (f *formatFunction) Definition(_ context.Context, _ function.DefinitionRequ
 				AllowUnknownValues: true,
 			},
 		},
-		VariadicParameter: function.DynamicParameter{
-			Name:               "rules",
-			Description:        "Optional per-resource-type rules.",
-			AllowUnknownValues: true,
-			AllowNullValue:     true,
-		},
 		Return: function.StringReturn{},
 	}
 }
@@ -56,20 +51,11 @@ func (f *formatFunction) Definition(_ context.Context, _ function.DefinitionRequ
 func (f *formatFunction) Run(ctx context.Context, req function.RunRequest, resp *function.RunResponse) {
 	var obj types.Object
 	var vars types.Map
-	var rest []types.Dynamic
-	if resp.Error = req.Arguments.Get(ctx, &obj, &vars, &rest); resp.Error != nil {
-		return
-	}
-	if len(rest) > 1 {
-		resp.Error = function.NewArgumentFuncError(2, "format takes at most one rules argument")
+	if resp.Error = req.Arguments.Get(ctx, &obj, &vars); resp.Error != nil {
 		return
 	}
 
-	unknown := obj.IsUnknown() || vars.IsUnknown() || (len(rest) == 1 && hasUnknown(rest[0]))
-	if !unknown && (hasUnknown(obj) || hasUnknown(vars)) {
-		unknown = true
-	}
-	if unknown {
+	if hasUnknown(obj) || hasUnknown(vars) {
 		resp.Error = resp.Result.Set(ctx, types.StringUnknown())
 		return
 	}
@@ -104,12 +90,10 @@ func (f *formatFunction) Run(ctx context.Context, req function.RunRequest, resp 
 		resp.Error = function.NewArgumentFuncError(0, "config."+err.Error())
 		return
 	}
-	var rules Rules
-	if len(rest) == 1 {
-		if rules, err = ParseRules(rest[0]); err != nil {
-			resp.Error = function.NewArgumentFuncError(2, err.Error())
-			return
-		}
+	ruleset, err := ParseRuleset(cfg["rules"])
+	if err != nil {
+		resp.Error = function.NewArgumentFuncError(0, "config."+err.Error())
+		return
 	}
 
 	tpl, err := ParseTemplate(template.ValueString())
@@ -117,6 +101,17 @@ func (f *formatFunction) Run(ctx context.Context, req function.RunRequest, resp 
 		resp.Error = function.NewArgumentFuncError(0, err.Error())
 		return
 	}
+	// The selecting component's value comes from the call, or from the static
+	// values when the scheme fixes it. A value with no entry has no extra rules.
+	var rules Rules
+	if ruleset.By != "" {
+		selector, ok := call[ruleset.By]
+		if !ok {
+			selector = staticVals[ruleset.By]
+		}
+		rules = ruleset.For(selector)
+	}
+
 	name, err := tpl.Format(staticVals, call, comps, rules)
 	if err != nil {
 		resp.Error = function.NewArgumentFuncError(1, err.Error())

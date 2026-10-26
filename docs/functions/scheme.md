@@ -3,14 +3,14 @@
 page_title: "scheme function - naming"
 subcategory: ""
 description: |-
-  Validate a naming template and return a config for format
+  Define a naming scheme for format
 ---
 
 # function: scheme
 
-Checks the template syntax, that every `static` key is used by the template, and the optional per-component constraints, then returns the config object to pass to `format`. Errors surface where the scheme is defined.
+Checks the template syntax, that every `static` key is used by the template, the optional per-component constraints and the optional per-resource-type rules, then returns the scheme to pass to `format`. Errors surface where the scheme is defined.
 
-The optional third argument maps component names to constraints. Every field is optional, and a component without constraints is unlimited.
+**Component constraints** (third argument) map component names to constraints. Every field is optional, and a component without constraints is unlimited.
 
 | Field | Type | Required | Needs | Description |
 |---|---|---|---|---|
@@ -21,21 +21,29 @@ The optional third argument maps component names to constraints. Every field is 
 | `overflow` | string | optional | a limit (`max_length`, or being the `fit` component) | What happens to a value longer than its limit: `"error"` (default) rejects it, `"truncate"` cuts it to the limit. |
 | `hash` | number | optional | `overflow = "truncate"` | Number of hex characters (1 to 64) of a hash of the original value appended to the cut value, so long values that start the same stay distinct. Taken from this component's value only, so it is the same in every environment. |
 
+**Resource type rules** (fourth argument) are an object with `by`, the placeholder whose value selects the rules (for example `type`), and `rules`, a map from that value to the rules for it. A value with no entry has no extra rules. Every field in a rule is optional.
+
+| Field | Type | Needs | Description |
+|---|---|---|---|
+| `lowercase` | bool | | `true` lowercases every part of the name, for resources that only accept lowercase. |
+| `remove` | string | | Regular expression. Every match is deleted from the name, including the template's own text. `"-"` deletes the hyphens; `"[^a-z0-9]"` deletes everything that is not a lowercase letter or digit (the `^` inside the brackets means "not"). It should match single characters. |
+| `min_length`, `max_length` | number | | Length limits for the finished name. A name outside them is an error. |
+| `fit` | string | `max_length`, and a placeholder in the template | The component that gets the room left under `max_length`. |
+| `components` | map | placeholders in the template | Per-component `min_length`, `max_length` and `allowed` for this resource type. They can only be stricter than the scheme's, never looser. |
+
 ## Example Usage
 
 ```terraform
 # A scheme is a template plus the values shared by everything that uses it.
 locals {
-  naming = {
-    scheme = provider::naming::scheme(
-      "{org}-{env}-{region}-{type}-{name}",
-      {
-        org    = "acme"
-        env    = "prod"
-        region = "weu"
-      },
-    )
-  }
+  simple = provider::naming::scheme(
+    "{org}-{env}-{region}-{type}-{name}",
+    {
+      org    = "acme"
+      env    = "prod"
+      region = "weu"
+    },
+  )
 }
 
 # Constraints per component are optional. A component without any is unlimited.
@@ -46,26 +54,67 @@ locals {
 #   pattern                   regular expression the value must match
 #   overflow                  "error" (default) or "truncate"
 #   hash                      hash characters appended when truncating
+#
+# Rules per resource type are the optional fourth argument. `by` names the
+# placeholder whose value selects the rules; a value with no entry has none.
 locals {
-  constrained = {
-    scheme = provider::naming::scheme(
-      "{type}-{system}-{name}-{environment}-{region}-{discriminator}",
-      {
-        system        = "lis"
-        environment   = "dev"
-        region        = "weu"
-        discriminator = "b73a"
-      },
-      {
-        type          = { max_length = 4 }
-        system        = { max_length = 3 }
-        name          = { overflow = "truncate" }
-        environment   = { allowed = ["dev", "test", "prod"] }
-        region        = { max_length = 3 }
-        discriminator = { max_length = 4 }
-      },
-    )
-  }
+  naming = provider::naming::scheme(
+    "{type}-{system}-{name}-{environment}-{region}-{discriminator}",
+    {
+      system        = "lis"
+      environment   = "dev"
+      region        = "weu"
+      discriminator = "b73a"
+    },
+    {
+      type          = { max_length = 4 }
+      system        = { max_length = 3 }
+      name          = { overflow = "truncate" }
+      environment   = { allowed = ["dev", "test", "prod"] }
+      region        = { max_length = 3 }
+      discriminator = { max_length = 4 }
+    },
+    {
+      by = "type"
+      rules = {
+        # Key Vault: 24 characters, hyphens allowed.
+        #   24 - 5 hyphens - 2 (type) - 3 - 4 - 3 - 4 leaves 3 characters for `name`.
+        kv = {
+          max_length = 24
+          fit        = "name"
+          components = { type = { max_length = 2 } } # tightens the scheme's 4
+        }
+
+        # Storage account: 3-24 lowercase letters and digits, no hyphens.
+        #   `remove` deletes every character that is not a lowercase letter or digit
+        #   (the ^ means "not"), hyphens included, before the budget is calculated,
+        #   so `name` gets 24 - 2 - 3 - 4 - 3 - 4 = 8 characters.
+        st = {
+          lowercase  = true
+          remove     = "[^a-z0-9]"
+          min_length = 3
+          max_length = 24
+          fit        = "name"
+          components = { type = { max_length = 2 } }
+        }
+      }
+    },
+  )
+}
+
+# kv-lis-wha-dev-weu-b73a
+output "key_vault_name" {
+  value = provider::naming::format(local.naming, { type = "kv", name = "wharf" })
+}
+
+# stlisdatalakedevweub73a
+output "storage_account_name" {
+  value = provider::naming::format(local.naming, { type = "st", name = "datalake" })
+}
+
+# rg-lis-network-dev-weu-b73a (no rules for rg, so only the component constraints apply)
+output "resource_group_name" {
+  value = provider::naming::format(local.naming, { type = "rg", name = "network" })
 }
 ```
 
@@ -73,7 +122,7 @@ locals {
 
 <!-- signature generated by tfplugindocs -->
 ```text
-scheme(template string, static map of string, components dynamic...) object
+scheme(template string, static map of string, options dynamic...) object
 ```
 
 ## Arguments
@@ -82,4 +131,4 @@ scheme(template string, static map of string, components dynamic...) object
 1. `template` (String) Template with `{key}` placeholders, e.g. `{org}-{env}-{type}-{name}`.
 1. `static` (Map of String) Module-wide values for placeholders (use {} for none).
 <!-- variadic argument generated by tfplugindocs -->
-1. `components` (Variadic, Dynamic, Nullable) Optional map of component name to constraints.
+1. `options` (Variadic, Dynamic, Nullable) Optional: component constraints, then resource type rules (`{ by = ..., rules = { ... } }`). Pass `{}` for the first to set only the second.

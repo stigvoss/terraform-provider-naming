@@ -298,3 +298,33 @@ func TestTighten(t *testing.T) {
 		})
 	}
 }
+
+func TestCheckRuleset(t *testing.T) {
+	tpl, _ := ParseTemplate(kvTemplate)
+	scheme := kvScheme()
+	scheme["type"] = ComponentSpec{MaxLength: ip(4)}
+
+	ok := Ruleset{By: "type", Rules: map[string]Rules{"kv": kvRules()}}
+	if err := tpl.CheckRuleset(scheme, ok); err != nil {
+		t.Fatalf("valid ruleset rejected: %v", err)
+	}
+
+	tests := []struct {
+		name    string
+		rs      Ruleset
+		wantErr string
+	}{
+		{"by not in template", Ruleset{By: "nope"}, "rules.by"},
+		{"rule invalid", Ruleset{By: "type", Rules: map[string]Rules{"kv": {Fit: "name"}}}, `rules for "kv"`},
+		{"key too long for the selecting component", Ruleset{By: "type", Rules: map[string]Rules{"keyvault": {}}}, "not a valid type"},
+		{"key longer than the rule's own tightening", Ruleset{By: "type", Rules: map[string]Rules{"kvlt": kvRules()}}, "not a valid type"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tpl.CheckRuleset(scheme, tc.rs)
+			if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+				t.Fatalf("want error containing %q, got %v", tc.wantErr, err)
+			}
+		})
+	}
+}

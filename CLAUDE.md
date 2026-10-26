@@ -39,39 +39,37 @@ resource "azurerm_resource_group" "rg" {
 block" idea is impossible. The provider has an empty schema, and the template travels as a
 function argument. Share it across configurations via a module output.
 
-### Function `scheme(template, static, components?)`
-- Validates template syntax, that every `static` key is used, and the optional component
-  constraints; returns `{ template, static, components }` for `format`.
+### Function `scheme(template, static, components?, rules?)`
+- Validates template syntax, that every `static` key is used, the optional component constraints
+  and the optional per-type rules; returns `{ template, static, components, rules }` for `format`.
 - Component spec fields (all optional, unlimited by default): `min_length`, `max_length`,
-  `allowed`, `pattern`, `overflow` (`error` default | `truncate`), `hash`.
+  `allowed`, `pattern`, `overflow` (`error` default | `truncate`), `hash` (1-64, needs `truncate`).
+- `rules` is `{ by = <placeholder>, rules = { <value of by> = { lowercase, remove (regex),
+  min_length, max_length, fit, components } } }`. Overrides in `components` may only tighten the
+  scheme's `max_length` / `min_length` / `allowed`. A value of `by` with no entry has no rules.
+  Each rule is checked against the scheme when it is defined (`CheckRuleset`), including that its
+  key is a valid value for the `by` component.
 - Unknown inputs yield an unknown result; whatever is known is still validated.
 
-### Function `rules(scheme, rules)`
-- Validates per-type rules against a scheme at definition time and returns them normalized.
-- Fields: `lowercase`, `remove` (regex), `min_length`, `max_length`, `fit`, `components`
-  (overrides may only tighten the scheme's `max_length` / `min_length` / `allowed`).
-
-### Function `format(config, variables, rules?)`
-- Pipeline (`format.go`): merge static + call values -> check each against its component spec
-  -> `lowercase` / `remove` -> shrink the `fit` component into its budget -> render -> check total length.
+### Function `format(config, variables)`
+- Picks the rules for the value of the `by` component (from the call, else from `static`), then
+  runs the pipeline (`format.go`): merge static + call values -> check each against its component
+  spec -> `lowercase` / `remove` -> shrink the `fit` component into its budget -> render -> check
+  total length. Lengths are counted in characters, not bytes.
 - The `fit` budget uses the *declared* bound (`max_length` or longest `allowed`) of every other
   component, not actual lengths, so the fitted component is identical across environments. An
   unbounded component counts at its actual length.
-- Errors: invalid template, unused `static` key, component or rule violation (arg 0/1/2); call key
-  overriding `static`, extra call key, unresolved placeholder.
+- Errors: invalid template, unused `static` key, component or rule violation; call key overriding
+  `static`, extra call key, unresolved placeholder.
 - Rendering is simple `{key}` replacement, no templating engine. Remove patterns should match
   single characters; they are applied to each component and each literal segment separately.
 
 ### Optional later
-- Bundle the scheme into `rules()`'s result so a call is `format(local.naming.key_vault, { ... })`
-  (two arguments instead of three). `format` would accept either a scheme or the bundle.
-  Provider-level scheme config is not possible: functions cannot read provider configuration,
-  and a data source would reintroduce "known after apply" names.
 - Built-in presets of hard limits per cloud, as a pure function (e.g. `provider::naming::azurerm()`
-  returning resource type -> base rules), merged with scheme-specific `fit` / `components`:
-  `merge(local.azure.storage_account, { fit = "name", ... })`. Not a resource or data source: those
-  would make names unknown at plan time. Needs a whole-name `pattern` rule first (Key Vault: starts
-  with a letter, no consecutive hyphens). No type abbreviations (`kv`, `st`): that is org convention.
+  returning resource type -> base rules), merged into the scheme's `rules` with scheme-specific
+  `fit` / `components`. Not a resource or data source: those would make names unknown at plan time.
+  Needs a whole-name `pattern` rule first (Key Vault: starts with a letter, no consecutive
+  hyphens). No type abbreviations (`kv`, `st`): that is org convention.
 
 ## Gotchas
 

@@ -111,3 +111,44 @@ func TestHasUnknown(t *testing.T) {
 		t.Fatal("nested unknown not detected")
 	}
 }
+
+func TestParseRuleset(t *testing.T) {
+	rs, err := ParseRuleset(obj(map[string]attr.Value{
+		"by": types.StringValue("type"),
+		"rules": obj(map[string]attr.Value{
+			"kv": obj(map[string]attr.Value{"max_length": num(24), "fit": types.StringValue("name")}),
+		}),
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rs.By != "type" || *rs.For("kv").MaxLength != 24 {
+		t.Fatalf("unexpected ruleset: %+v", rs)
+	}
+	if got := rs.For("rg"); got.MaxLength != nil || got.Fit != "" {
+		t.Fatalf("a type with no entry must have no rules, got %+v", got)
+	}
+	if none, err := ParseRuleset(types.ObjectNull(rulesetAttrTypes)); err != nil || none.By != "" {
+		t.Fatalf("null ruleset: %+v, %v", none, err)
+	}
+
+	tests := []struct {
+		name    string
+		in      attr.Value
+		wantErr string
+	}{
+		{"missing by", obj(map[string]attr.Value{"rules": obj(map[string]attr.Value{})}), "by is required"},
+		{"unknown field", obj(map[string]attr.Value{"by": types.StringValue("type"), "ruls": obj(map[string]attr.Value{})}), "unknown field"},
+		{"bad rule names the key", obj(map[string]attr.Value{"by": types.StringValue("type"), "rules": obj(map[string]attr.Value{
+			"kv": obj(map[string]attr.Value{"fit": types.StringValue("name")}),
+		})}), `rules for "kv"`},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := ParseRuleset(tc.in)
+			if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+				t.Fatalf("want error containing %q, got %v", tc.wantErr, err)
+			}
+		})
+	}
+}

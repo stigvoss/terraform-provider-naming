@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"sort"
 	"strings"
 	"unicode/utf8"
 )
@@ -268,4 +269,33 @@ func (r Rules) transformer() func(string) string {
 		}
 		return s
 	}
+}
+
+// CheckRuleset validates a scheme's per-type rules without any values: the
+// selecting placeholder exists, every rule is valid against the scheme's
+// components, and every selector value is itself a valid value for that
+// placeholder (under the tightening of its own rule).
+func (t *Template) CheckRuleset(comps map[string]ComponentSpec, rs Ruleset) error {
+	if rs.By == "" {
+		return nil
+	}
+	if !t.Has(rs.By) {
+		return fmt.Errorf("rules.by %q is not used by the template %q", rs.By, t.raw)
+	}
+	keys := make([]string, 0, len(rs.Rules))
+	for k := range rs.Rules {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		rule := rs.Rules[k]
+		if err := t.CheckRules(comps, rule); err != nil {
+			return fmt.Errorf("rules for %q: %w", k, err)
+		}
+		specs, _ := t.effectiveSpecs(comps, rule)
+		if _, err := CheckValue(rs.By, k, specs[rs.By]); err != nil {
+			return fmt.Errorf("rules for %q: the key is not a valid %s: %w", k, rs.By, err)
+		}
+	}
+	return nil
 }
