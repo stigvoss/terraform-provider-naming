@@ -28,8 +28,8 @@ func (f *schemeFunction) Metadata(_ context.Context, _ function.MetadataRequest,
 
 func (f *schemeFunction) Definition(_ context.Context, _ function.DefinitionRequest, resp *function.DefinitionResponse) {
 	resp.Definition = function.Definition{
-		Summary:     "Validate a naming template and return a config for `name`",
-		Description: "Checks the template syntax and that every `static` key is used by the template, then returns the config object to pass to `name`. Errors surface where the scheme is defined.",
+		Summary:     "Validate a naming template and return a config for `format`",
+		Description: "Checks the template syntax and that every `static` key is used by the template, then returns the config object to pass to `format`. Errors surface where the scheme is defined.",
 		Parameters: []function.Parameter{
 			function.StringParameter{
 				Name:               "template",

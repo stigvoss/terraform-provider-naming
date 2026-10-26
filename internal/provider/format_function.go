@@ -9,23 +9,23 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 )
 
-var _ function.Function = (*nameFunction)(nil)
+var _ function.Function = (*formatFunction)(nil)
 
-// NewNameFunction returns the provider::naming::name function.
-func NewNameFunction() function.Function { return &nameFunction{} }
+// NewFormatFunction returns the provider::naming::format function.
+func NewFormatFunction() function.Function { return &formatFunction{} }
 
-type nameFunction struct{}
+type formatFunction struct{}
 
 type namingConfig struct {
 	Template types.String `tfsdk:"template"`
 	Static   types.Map    `tfsdk:"static"`
 }
 
-func (f *nameFunction) Metadata(_ context.Context, _ function.MetadataRequest, resp *function.MetadataResponse) {
-	resp.Name = "name"
+func (f *formatFunction) Metadata(_ context.Context, _ function.MetadataRequest, resp *function.MetadataResponse) {
+	resp.Name = "format"
 }
 
-func (f *nameFunction) Definition(_ context.Context, _ function.DefinitionRequest, resp *function.DefinitionResponse) {
+func (f *formatFunction) Definition(_ context.Context, _ function.DefinitionRequest, resp *function.DefinitionResponse) {
 	resp.Definition = function.Definition{
 		Summary:     "Render a resource name from a naming template",
 		Description: "Fills `config.template` with `config.static` plus the variable parts in `variables`. Define `config` once (a local or module output) and pass it to every call.",
@@ -47,7 +47,7 @@ func (f *nameFunction) Definition(_ context.Context, _ function.DefinitionReques
 	}
 }
 
-func (f *nameFunction) Run(ctx context.Context, req function.RunRequest, resp *function.RunResponse) {
+func (f *formatFunction) Run(ctx context.Context, req function.RunRequest, resp *function.RunResponse) {
 	var obj types.Object
 	var vars types.Map
 	if resp.Error = req.Arguments.Get(ctx, &obj, &vars); resp.Error != nil {

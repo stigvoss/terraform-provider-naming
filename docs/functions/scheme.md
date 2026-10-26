@@ -3,12 +3,12 @@
 page_title: "scheme function - naming"
 subcategory: ""
 description: |-
-  Validate a naming template and return a config for name
+  Validate a naming template and return a config for format
 ---
 
 # function: scheme
 
-Checks the template syntax and that every `static` key is used by the template, then returns the config object to pass to `name`. Errors surface where the scheme is defined.
+Checks the template syntax and that every `static` key is used by the template, then returns the config object to pass to `format`. Errors surface where the scheme is defined.
 
 ## Example Usage
 

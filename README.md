@@ -19,13 +19,13 @@ locals {
 }
 
 resource "azurerm_resource_group" "rg" {
-  name = provider::naming::name(local.naming, { type = "rg", name = "network" })
+  name = provider::naming::format(local.naming, { type = "rg", name = "network" })
   # -> acme-prod-weu-rg-network
 }
 ```
 
 - `scheme(template, static)` validates the template and returns the config object. Mistakes show up where the scheme is defined.
-- `name(config, variables)` fills the template with the static values plus the variable parts, and errors on a missing placeholder, an extra key, or a call key that overrides a static one.
+- `format(config, variables)` fills the template with the static values plus the variable parts, and errors on a missing placeholder, an extra key, or a call key that overrides a static one.
 
 Provider functions cannot read provider configuration, so the template is passed as an argument rather than set in a `provider` block. Share one scheme across configurations with a module output.
 

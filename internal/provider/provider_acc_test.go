@@ -23,11 +23,11 @@ locals {
 }
 
 output "rg" {
-  value = provider::naming::name(local.naming, { type = "rg", name = "network" })
+  value = provider::naming::format(local.naming, { type = "rg", name = "network" })
 }
 `
 
-func TestAccNameFunction(t *testing.T) {
+func TestAccFormatFunction(t *testing.T) {
 	resource.UnitTest(t, resource.TestCase{
 		TerraformVersionChecks:   []tfversion.TerraformVersionCheck{tfversion.SkipBelow(tfversion.Version1_8_0)},
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
@@ -40,7 +40,7 @@ func TestAccNameFunction(t *testing.T) {
 	})
 }
 
-func TestAccNameFunctionErrors(t *testing.T) {
+func TestAccFormatFunctionErrors(t *testing.T) {
 	cfg := func(call string) string {
 		return `
 locals {
@@ -49,7 +49,7 @@ locals {
     static   = { org = "acme" }
   }
 }
-output "x" { value = provider::naming::name(local.naming, ` + call + `) }
+output "x" { value = provider::naming::format(local.naming, ` + call + `) }
 `
 	}
 	resource.UnitTest(t, resource.TestCase{

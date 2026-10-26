@@ -7,5 +7,5 @@ locals {
 
 # acme-prod-weu-rg-network
 output "resource_group_name" {
-  value = provider::naming::name(local.naming, { type = "rg", name = "network" })
+  value = provider::naming::format(local.naming, { type = "rg", name = "network" })
 }

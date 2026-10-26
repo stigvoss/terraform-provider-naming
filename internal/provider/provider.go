@@ -34,7 +34,7 @@ func (p *namingProvider) Metadata(_ context.Context, _ provider.MetadataRequest,
 
 func (p *namingProvider) Schema(_ context.Context, _ provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description: "Names resources from one central template. Provides the `name` function only; there is nothing to configure.",
+		Description: "Names resources from one central template. Provides the `format` function only; there is nothing to configure.",
 	}
 }
 
@@ -42,7 +42,7 @@ func (p *namingProvider) Configure(context.Context, provider.ConfigureRequest, *
 }
 
 func (p *namingProvider) Functions(context.Context) []func() function.Function {
-	return []func() function.Function{NewSchemeFunction, NewNameFunction}
+	return []func() function.Function{NewSchemeFunction, NewFormatFunction}
 }
 
 func (p *namingProvider) Resources(context.Context) []func() resource.Resource { return nil }

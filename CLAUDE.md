@@ -1,8 +1,8 @@
 # terraform-provider-naming
 
 A Terraform provider whose only job is to name resources from one central template.
-The provider block holds the template and module-wide static parts. A provider-defined
-function takes only the variable parts and returns the rendered name.
+`scheme` validates a template plus module-wide static parts; `format` takes that scheme and
+the variable parts and returns the rendered name.
 
 ## Goal / usage
 
@@ -21,7 +21,7 @@ locals {
 }
 
 resource "azurerm_resource_group" "rg" {
-  name = provider::naming::name(local.naming, { type = "rg", name = "network" })
+  name = provider::naming::format(local.naming, { type = "rg", name = "network" })
   # -> acme-prod-weu-rg-network
 }
 ```
@@ -41,10 +41,10 @@ function argument. Share it across configurations via a module output.
 
 ### Function `scheme(template, static)`
 - Validates template syntax and that every `static` key is used, then returns the
-  `{ template, static }` object for `name`. Errors surface where the scheme is defined.
+  `{ template, static }` object for `format`. Errors surface where the scheme is defined.
 - Unknown inputs are passed through; whatever is known is still validated.
 
-### Function `name(config, variables)`
+### Function `format(config, variables)`
 - `config`: object `{ template = string, static = map(string) }` (`static = {}` for none).
 - `variables`: map of strings for the remaining placeholders.
 - Unknown anywhere in the arguments -> unknown result (plans do not fail).
@@ -67,7 +67,7 @@ function argument. Share it across configurations via a module output.
 ```
 main.go
 internal/provider/provider.go
-internal/provider/name_function.go
+internal/provider/format_function.go
 internal/provider/render.go          # pure rendering logic, unit-tested
 internal/provider/render_test.go
 examples/
@@ -78,6 +78,6 @@ docs/
 
 1. `go mod init` and scaffold from the terraform-provider-scaffolding-framework layout.
 2. Implement `render.go` with table-driven unit tests (missing key, extra key, override, unbalanced braces).
-3. Implement the provider and the `name` function.
-4. Add acceptance tests using `terraform-plugin-testing` with a `provider::naming::name(...)` output (needs Terraform 1.8+).
+3. Implement the provider and the `format` function.
+4. Add acceptance tests using `terraform-plugin-testing` with a `provider::naming::format(...)` output (needs Terraform 1.8+).
 5. Add an example under `examples/` and generate docs with `tfplugindocs`.
