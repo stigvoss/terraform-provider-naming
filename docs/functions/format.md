@@ -10,7 +10,12 @@ description: |-
 
 Fills the scheme's template with its static values plus the variable parts in `variables`, checking each component against the scheme's constraints. Define the scheme once with `scheme` and pass it to every call.
 
-The optional third argument holds per-resource-type rules: `lowercase` (bool), `remove` (regular expression of characters to delete), `min_length` and `max_length` (of the whole name), `fit` (the component that is shrunk to make the name fit `max_length`) and `components` (constraints that tighten, never loosen, the scheme's). The budget for the `fit` component is calculated from the declared bounds of the other components, so it is the same in every environment.
+The optional third argument holds per-resource-type rules, as returned by `rules`. They are applied in this order:
+
+1. `lowercase`: lowercase every part.
+2. `remove`: delete characters matching a regular expression.
+3. `fit`: shrink one component so the name fits `max_length`. Its budget comes from the declared maximum lengths of the other components, so it is the same in every environment.
+4. `min_length`, `max_length`: check the length of the whole name.
 
 ## Example Usage
 

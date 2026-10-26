@@ -23,11 +23,17 @@ func (f *schemeFunction) Metadata(_ context.Context, _ function.MetadataRequest,
 func (f *schemeFunction) Definition(_ context.Context, _ function.DefinitionRequest, resp *function.DefinitionResponse) {
 	resp.Definition = function.Definition{
 		Summary: "Validate a naming template and return a config for `format`",
-		Description: "Checks the template syntax, that every `static` key is used by the template, and the optional per-component constraints, " +
-			"then returns the config object to pass to `format`. Errors surface where the scheme is defined.\n\n" +
-			"The optional third argument maps component names to constraints: `min_length`, `max_length`, `allowed` (list of values), " +
-			"`pattern` (regular expression), `on_too_long` (`error`, the default, or `truncate`) and `hash` (number of hash characters " +
-			"appended when truncating). Every field is optional and a component without constraints is unlimited.",
+		Description: "Checks the template syntax, that every `static` key is used by the template, and the optional per-component " +
+			"constraints, then returns the config object to pass to `format`. Errors surface where the scheme is defined.\n\n" +
+			"The optional third argument maps component names to constraints. Every field is optional, and a component without " +
+			"constraints is unlimited.\n\n" +
+			"| Field | Meaning |\n" +
+			"|---|---|\n" +
+			"| `min_length`, `max_length` | length limits |\n" +
+			"| `allowed` | list of accepted values |\n" +
+			"| `pattern` | regular expression the value must match |\n" +
+			"| `on_too_long` | `\"error\"` (default) or `\"truncate\"` for a value over its limit |\n" +
+			"| `hash` | number of hash characters appended when truncating |",
 		Parameters: []function.Parameter{
 			function.StringParameter{
 				Name:               "template",

@@ -10,7 +10,15 @@ description: |-
 
 Checks the template syntax, that every `static` key is used by the template, and the optional per-component constraints, then returns the config object to pass to `format`. Errors surface where the scheme is defined.
 
-The optional third argument maps component names to constraints: `min_length`, `max_length`, `allowed` (list of values), `pattern` (regular expression), `on_too_long` (`error`, the default, or `truncate`) and `hash` (number of hash characters appended when truncating). Every field is optional and a component without constraints is unlimited.
+The optional third argument maps component names to constraints. Every field is optional, and a component without constraints is unlimited.
+
+| Field | Meaning |
+|---|---|
+| `min_length`, `max_length` | length limits |
+| `allowed` | list of accepted values |
+| `pattern` | regular expression the value must match |
+| `on_too_long` | `"error"` (default) or `"truncate"` for a value over its limit |
+| `hash` | number of hash characters appended when truncating |
 
 ## Example Usage
 

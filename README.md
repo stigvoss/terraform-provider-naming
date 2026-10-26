@@ -36,13 +36,70 @@ resource "azurerm_resource_group" "rg" {
 
 ## Constraints
 
-Resource types have different naming rules (an Azure storage account allows only lowercase letters and digits and 3-24 characters; a Key Vault allows 24 characters with hyphens). There are two levels, and all of it is optional.
+Resource types have different naming rules. A storage account allows only lowercase letters and digits and 3-24 characters; a Key Vault allows 24 characters including hyphens. Everything below is optional.
 
-**Per component, in the scheme.** Each component can set `min_length`, `max_length`, `allowed` (a list of values), `pattern` (a regular expression), `on_too_long` (`"error"`, the default, or `"truncate"`) and `hash` (number of hash characters appended when truncating, so two long values do not collapse into one). A component with no constraints is unlimited.
+There are two places to set constraints:
 
-**Per resource type, in the rules.** `lowercase`, `remove` (a regular expression of characters to delete), `min_length` / `max_length` for the whole name, `fit`, and `components`, which can only *tighten* the scheme's component constraints for that type (for example `type` is up to 4 characters in general but 2 for a Key Vault).
+| Where | Applies to | Set with |
+|---|---|---|
+| **Component constraints** | one placeholder, for every resource type | the third argument of `scheme` |
+| **Resource type rules** | the whole name, for one resource type | `rules`, passed as the third argument of `format` |
 
-`fit` names the component that is shrunk to make the name fit `max_length`. Its budget is calculated from the *declared* maximum lengths of the other components, not their actual values, so the shrunk component is the same in every environment (`dev` and `prod` get the same trimmed `name`). A component with no declared maximum counts at its actual length, so declare one wherever the name has to stay constant. Whether `fit` trims or errors follows the component's `on_too_long`.
+### Component constraints
+
+Keyed by placeholder name, in `scheme`. A component with no constraints is unlimited. Static values are checked when the scheme is defined, variables on every `format` call.
+
+| Field | Meaning |
+|---|---|
+| `min_length`, `max_length` | length limits |
+| `allowed` | list of accepted values |
+| `pattern` | regular expression the value must match |
+| `on_too_long` | what to do with a value over its limit: `"error"` (default) or `"truncate"` |
+| `hash` | number of hash characters appended when truncating, so two long values don't collapse into one |
+
+### Resource type rules
+
+In `rules`. These apply to the finished name, in this order:
+
+| Step | Field | Meaning |
+|---|---|---|
+| 1 | `lowercase` | lowercase every part |
+| 2 | `remove` | regular expression of characters to delete (should match single characters) |
+| 3 | `fit` | the component that is shrunk so the name fits `max_length` (see below) |
+| 4 | `min_length`, `max_length` | length limits for the whole name |
+| | `components` | per-component constraints that **tighten** the scheme's for this type, never loosen them |
+
+### Fitting a component into a length limit
+
+`fit = "name"` makes `name` the component that gets whatever room is left under `max_length`. The room is calculated from the **declared** maximum lengths of the other components, not from the values in a given call. So `name` is trimmed the same way in `dev` and `prod`.
+
+Key Vault, 24 characters:
+
+| Part | Characters |
+|---|---|
+| `type` (tightened from 4 to 2 for this type) | 2 |
+| `system` | 3 |
+| `environment` (longest allowed value) | 4 |
+| `region` | 3 |
+| `discriminator` | 4 |
+| 5 hyphens | 5 |
+| **Left for `name`** | **3** |
+
+Things to know:
+
+- A component without a declared maximum counts at its actual length. Declare one wherever the name must stay the same across environments.
+- `fit` only sets the limit. Whether an over-long `name` is trimmed or rejected is the component's `on_too_long`:
+
+| `on_too_long` of the fitted component | `name = "wharf"`, limit 3 |
+|---|---|
+| `"truncate"` | `wha` |
+| `"error"` (default) | error: `"wharf"` is 5 characters, the limit is 3 |
+
+- If the other components leave no room at all, `rules` reports it up front.
+
+### Example
+
+A scheme with constraints, and rules for a Key Vault and a storage account. `remove` strips the template's hyphens before the budget is calculated, so for the storage account `name` gets 8 characters.
 
 ```hcl
 locals {

@@ -21,9 +21,19 @@ func (f *rulesFunction) Metadata(_ context.Context, _ function.MetadataRequest, 
 func (f *rulesFunction) Definition(_ context.Context, _ function.DefinitionRequest, resp *function.DefinitionResponse) {
 	resp.Definition = function.Definition{
 		Summary: "Validate per-resource-type rules against a scheme",
-		Description: "Checks that the rules are well formed, that component overrides only tighten the scheme's constraints, " +
-			"and that the `fit` component has room. Returns the rules, ready to pass to `format`, so mistakes surface where " +
-			"the rules are defined instead of on the first `format` call.",
+		Description: "Returns the rules, ready to pass to `format`, after checking them against the scheme, so mistakes surface where " +
+			"the rules are defined instead of on the first `format` call.\n\n" +
+			"Checks:\n\n" +
+			"- the rules are well formed and use only known fields;\n" +
+			"- `components` overrides only tighten the scheme's constraints;\n" +
+			"- the `fit` component has room under `max_length`.\n\n" +
+			"| Field | Meaning |\n" +
+			"|---|---|\n" +
+			"| `lowercase` | lowercase every part |\n" +
+			"| `remove` | regular expression of characters to delete |\n" +
+			"| `min_length`, `max_length` | length limits for the whole name |\n" +
+			"| `fit` | component shrunk to make the name fit `max_length` |\n" +
+			"| `components` | per-component constraints that tighten the scheme's |",
 		Parameters: []function.Parameter{
 			function.ObjectParameter{
 				Name:               "config",

@@ -8,7 +8,21 @@ description: |-
 
 # function: rules
 
-Checks that the rules are well formed, that component overrides only tighten the scheme's constraints, and that the `fit` component has room. Returns the rules, ready to pass to `format`, so mistakes surface where the rules are defined instead of on the first `format` call.
+Returns the rules, ready to pass to `format`, after checking them against the scheme, so mistakes surface where the rules are defined instead of on the first `format` call.
+
+Checks:
+
+- the rules are well formed and use only known fields;
+- `components` overrides only tighten the scheme's constraints;
+- the `fit` component has room under `max_length`.
+
+| Field | Meaning |
+|---|---|
+| `lowercase` | lowercase every part |
+| `remove` | regular expression of characters to delete |
+| `min_length`, `max_length` | length limits for the whole name |
+| `fit` | component shrunk to make the name fit `max_length` |
+| `components` | per-component constraints that tighten the scheme's |
 
 ## Example Usage
 
