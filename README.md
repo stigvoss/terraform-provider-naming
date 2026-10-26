@@ -65,6 +65,23 @@ provider::naming::format(local.naming, { type = "kv", "system-code" = "lis", nam
   "environment-code" = "dev", "location-code" = "weu", discriminator = "b73a" }, local.key_vault)
 ```
 
+The same scheme also works for a storage account (3-24 lowercase letters and digits). `remove` strips the template's hyphens, and the budget is calculated after that, so `name` gets 8 characters in every environment:
+
+```hcl
+storage_account = provider::naming::rules(local.naming, {
+  lowercase  = true
+  remove     = "[^a-z0-9]"
+  min_length = 3
+  max_length = 24
+  fit        = "name"
+  components = { type = { max_length = 2 } }
+})
+
+# stlisdatalakedevweub73a
+provider::naming::format(local.naming, { type = "st", "system-code" = "lis", name = "datalake",
+  "environment-code" = "dev", "location-code" = "weu", discriminator = "b73a" }, local.storage_account)
+```
+
 Provider functions cannot read provider configuration, so the template is passed as an argument rather than set in a `provider` block. Share one scheme across configurations with a module output.
 
 See [docs/](docs/) for the full function reference.
