@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"context"
 	"fmt"
 	"math/big"
 	"sort"
@@ -116,7 +117,7 @@ func fields(v attr.Value, what string) (map[string]attr.Value, error) {
 	case basetypes.MapValue:
 		return t.Elements(), nil
 	default:
-		return nil, fmt.Errorf("%s must be an object, got %s", what, t.Type(nil))
+		return nil, fmt.Errorf("%s must be an object, got %s", what, t.Type(context.Background()))
 	}
 }
 

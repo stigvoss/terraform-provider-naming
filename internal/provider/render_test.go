@@ -55,7 +55,7 @@ func TestRender(t *testing.T) {
 		{"repeated placeholder", "{org}{org}-{name}", map[string]string{"name": "x"}, "acmeacme-x", ""},
 		{"missing key", "{org}-{type}-{name}", map[string]string{"type": "rg"}, "", `"name"`},
 		{"missing key mentions template", "{org}-{name}", map[string]string{}, "", "missing value"},
-		{"extra key", "{org}-{name}", map[string]string{"name": "x", "nmae": "y"}, "", `"nmae" are not used`},
+		{"extra key", "{org}-{name}", map[string]string{"name": "x", "typo": "y"}, "", `"typo" are not used`},
 		{"override static", "{org}-{name}", map[string]string{"name": "x", "org": "evil"}, "", "cannot be overridden"},
 		{"empty value allowed", "{org}-{name}", map[string]string{"name": ""}, "acme-", ""},
 	}
