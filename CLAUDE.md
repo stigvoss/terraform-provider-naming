@@ -39,21 +39,31 @@ resource "azurerm_resource_group" "rg" {
 block" idea is impossible. The provider has an empty schema, and the template travels as a
 function argument. Share it across configurations via a module output.
 
-### Function `scheme(template, static)`
-- Validates template syntax and that every `static` key is used, then returns the
-  `{ template, static }` object for `format`. Errors surface where the scheme is defined.
-- Unknown inputs are passed through; whatever is known is still validated.
+### Function `scheme(template, static, components?)`
+- Validates template syntax, that every `static` key is used, and the optional component
+  constraints; returns `{ template, static, components }` for `format`.
+- Component spec fields (all optional, unlimited by default): `min_length`, `max_length`,
+  `allowed`, `pattern`, `on_too_long` (`error` default | `truncate`), `hash`.
+- Unknown inputs yield an unknown result; whatever is known is still validated.
 
-### Function `format(config, variables)`
-- `config`: object `{ template = string, static = map(string) }` (`static = {}` for none).
-- `variables`: map of strings for the remaining placeholders.
-- Unknown anywhere in the arguments -> unknown result (plans do not fail).
-- Errors: invalid template, unused `static` key (arg 0); call key overriding `static`,
-  call key not in template, unresolved placeholder, null value (arg 1).
-- Rendering is simple `{key}` replacement (`internal/provider/render.go`), no templating engine.
+### Function `rules(scheme, rules)`
+- Validates per-type rules against a scheme at definition time and returns them normalized.
+- Fields: `lowercase`, `remove` (regex), `min_length`, `max_length`, `fit`, `components`
+  (overrides may only tighten the scheme's `max_length` / `min_length` / `allowed`).
+
+### Function `format(config, variables, rules?)`
+- Pipeline (`format.go`): merge static + call values -> check each against its component spec
+  -> `lowercase` / `remove` -> shrink the `fit` component into its budget -> render -> check total length.
+- The `fit` budget uses the *declared* bound (`max_length` or longest `allowed`) of every other
+  component, not actual lengths, so the fitted component is identical across environments. An
+  unbounded component counts at its actual length.
+- Errors: invalid template, unused `static` key, component or rule violation (arg 0/1/2); call key
+  overriding `static`, extra call key, unresolved placeholder.
+- Rendering is simple `{key}` replacement, no templating engine. Remove patterns should match
+  single characters; they are applied to each component and each literal segment separately.
 
 ### Optional later
-- Naming rules: max length, lowercase, allowed characters, separator handling (e.g. Azure storage accounts forbid hyphens).
+- Built-in presets for common Azure resource types.
 
 ## Gotchas
 

@@ -44,10 +44,7 @@ func TestAccFormatFunctionErrors(t *testing.T) {
 	cfg := func(call string) string {
 		return `
 locals {
-  naming = {
-    template = "{org}-{type}-{name}"
-    static   = { org = "acme" }
-  }
+  naming = provider::naming::scheme("{org}-{type}-{name}", { org = "acme" })
 }
 output "x" { value = provider::naming::format(local.naming, ` + call + `) }
 `
@@ -75,6 +72,84 @@ func TestAccSchemeFunctionErrors(t *testing.T) {
 			{Config: cfg(`"{org}-{name", {}`), ExpectError: regexp.MustCompile(`unbalanced`)},
 			{Config: cfg(`"{org}-{name}", { orgg = "acme" }`), ExpectError: regexp.MustCompile(`not\s+used\s+by\s+the\s+template`)},
 			{Config: cfg(`"static", {}`), ExpectError: regexp.MustCompile(`no\s+placeholders`)},
+		},
+	})
+}
+
+const testAccKeyVault = `
+locals {
+  naming = provider::naming::scheme(
+    "{type}-{system-code}-{name}-{environment-code}-{location-code}-{discriminator}",
+    {},
+    {
+      type               = { max_length = 4 }
+      "system-code"      = { max_length = 3 }
+      name               = { on_too_long = "truncate" }
+      "environment-code" = { allowed = ["dev", "test", "prod"] }
+      "location-code"    = { max_length = 3 }
+      discriminator      = { max_length = 4 }
+    },
+  )
+
+  key_vault = provider::naming::rules(local.naming, {
+    max_length = 24
+    fit        = "name"
+    components = { type = { max_length = 2 } }
+  })
+
+  parts = { type = "kv", "system-code" = "lis", "location-code" = "weu", discriminator = "b73a" }
+}
+
+output "dev"  { value = provider::naming::format(local.naming, merge(local.parts, { name = "wharf", "environment-code" = "dev" }), local.key_vault) }
+output "prod" { value = provider::naming::format(local.naming, merge(local.parts, { name = "wharf", "environment-code" = "prod" }), local.key_vault) }
+`
+
+func TestAccKeyVault(t *testing.T) {
+	resource.UnitTest(t, resource.TestCase{
+		TerraformVersionChecks:   []tfversion.TerraformVersionCheck{tfversion.SkipBelow(tfversion.Version1_8_0)},
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccKeyVault,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckOutput("dev", "kv-lis-wha-dev-weu-b73a"),
+					resource.TestCheckOutput("prod", "kv-lis-wha-prod-weu-b73a"),
+				),
+			},
+		},
+	})
+}
+
+func TestAccRulesAndComponentErrors(t *testing.T) {
+	scheme := `provider::naming::scheme("{type}-{env}-{name}", {}, { env = { allowed = ["dev", "prod"] }, type = { max_length = 4 } })`
+	cfg := func(body string) string {
+		return `locals { naming = ` + scheme + ` }
+` + body
+	}
+	resource.UnitTest(t, resource.TestCase{
+		TerraformVersionChecks:   []tfversion.TerraformVersionCheck{tfversion.SkipBelow(tfversion.Version1_8_0)},
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config:      cfg(`output "x" { value = provider::naming::format(local.naming, { type = "kv", env = "staging", name = "a" }) }`),
+				ExpectError: regexp.MustCompile(`not\s+one\s+of\s+the\s+allowed`),
+			},
+			{
+				Config:      cfg(`output "x" { value = provider::naming::rules(local.naming, { components = { type = { max_length = 9 } } }) }`),
+				ExpectError: regexp.MustCompile(`looser`),
+			},
+			{
+				Config:      cfg(`output "x" { value = provider::naming::rules(local.naming, { fit = "name", max_length = 8 }) }`),
+				ExpectError: regexp.MustCompile(`no\s+room`),
+			},
+			{
+				Config:      cfg(`output "x" { value = provider::naming::rules(local.naming, { lowercse = true }) }`),
+				ExpectError: regexp.MustCompile(`unknown\s+field`),
+			},
+			{
+				Config:      `output "x" { value = provider::naming::scheme("{a}", {}, { b = { max_length = 3 } }) }`,
+				ExpectError: regexp.MustCompile(`not\s+used\s+by\s+the\s+template`),
+			},
 		},
 	})
 }

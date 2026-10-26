@@ -24,8 +24,46 @@ resource "azurerm_resource_group" "rg" {
 }
 ```
 
-- `scheme(template, static)` validates the template and returns the config object. Mistakes show up where the scheme is defined.
-- `format(config, variables)` fills the template with the static values plus the variable parts, and errors on a missing placeholder, an extra key, or a call key that overrides a static one.
+- `scheme(template, static, components?)` validates the template and optional per-component constraints, and returns the config object. Mistakes show up where the scheme is defined.
+- `rules(scheme, rules)` validates per-resource-type rules against a scheme and returns them.
+- `format(scheme, variables, rules?)` fills the template with the static values plus the variable parts, and errors on a missing placeholder, an extra key, a call key that overrides a static one, or a constraint violation.
+
+## Constraints
+
+Resource types have different naming rules (an Azure storage account allows only lowercase letters and digits and 3-24 characters; a Key Vault allows 24 characters with hyphens). There are two levels, and all of it is optional.
+
+**Per component, in the scheme.** Each component can set `min_length`, `max_length`, `allowed` (a list of values), `pattern` (a regular expression), `on_too_long` (`"error"`, the default, or `"truncate"`) and `hash` (number of hash characters appended when truncating, so two long values do not collapse into one). A component with no constraints is unlimited.
+
+**Per resource type, in the rules.** `lowercase`, `remove` (a regular expression of characters to delete), `min_length` / `max_length` for the whole name, `fit`, and `components`, which can only *tighten* the scheme's component constraints for that type (for example `type` is up to 4 characters in general but 2 for a Key Vault).
+
+`fit` names the component that is shrunk to make the name fit `max_length`. Its budget is calculated from the *declared* maximum lengths of the other components, not their actual values, so the shrunk component is the same in every environment (`dev` and `prod` get the same trimmed `name`). A component with no declared maximum counts at its actual length, so declare one wherever the name has to stay constant. Whether `fit` trims or errors follows the component's `on_too_long`.
+
+```hcl
+locals {
+  naming = provider::naming::scheme(
+    "{type}-{system-code}-{name}-{environment-code}-{location-code}-{discriminator}",
+    {},
+    {
+      type               = { max_length = 4 }
+      "system-code"      = { max_length = 3 }
+      name               = { on_too_long = "truncate" }
+      "environment-code" = { allowed = ["dev", "test", "prod"] }
+      "location-code"    = { max_length = 3 }
+      discriminator      = { max_length = 4 }
+    },
+  )
+
+  key_vault = provider::naming::rules(local.naming, {
+    max_length = 24
+    fit        = "name"
+    components = { type = { max_length = 2 } }
+  })
+}
+
+# kv-lis-wha-dev-weu-b73a  (24 - 5 hyphens - 2 - 3 - 4 - 3 - 4 leaves 3 characters for name)
+provider::naming::format(local.naming, { type = "kv", "system-code" = "lis", name = "wharf",
+  "environment-code" = "dev", "location-code" = "weu", discriminator = "b73a" }, local.key_vault)
+```
 
 Provider functions cannot read provider configuration, so the template is passed as an argument rather than set in a `provider` block. Share one scheme across configurations with a module output.
 

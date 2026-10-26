@@ -87,10 +87,10 @@ func (t *Template) UnusedKeys(keys []string) []string {
 	return out
 }
 
-// Render fills the template from static and call values. A call key that
-// shadows a static key, a call key the template does not use, and any
-// placeholder left without a value are all errors.
-func (t *Template) Render(static, call map[string]string) (string, error) {
+// merge combines static and call values. A call key that shadows a static
+// key, a call key the template does not use, and any placeholder left without
+// a value are all errors.
+func (t *Template) merge(static, call map[string]string) (map[string]string, error) {
 	var shadowed, extra, missing []string
 	for k := range call {
 		if _, ok := static[k]; ok {
@@ -109,27 +109,27 @@ func (t *Template) Render(static, call map[string]string) (string, error) {
 	switch {
 	case len(shadowed) > 0:
 		sort.Strings(shadowed)
-		return "", fmt.Errorf("key(s) %s are set by the provider's static block and cannot be overridden", quoteAll(shadowed))
+		return nil, fmt.Errorf("key(s) %s are set by the scheme's static values and cannot be overridden", quoteAll(shadowed))
 	case len(extra) > 0:
 		sort.Strings(extra)
-		return "", fmt.Errorf("key(s) %s are not used by the template %q", quoteAll(extra), t.raw)
+		return nil, fmt.Errorf("key(s) %s are not used by the template %q", quoteAll(extra), t.raw)
 	case len(missing) > 0:
-		return "", fmt.Errorf("missing value for placeholder(s) %s in template %q", quoteAll(missing), t.raw)
+		return nil, fmt.Errorf("missing value for placeholder(s) %s in template %q", quoteAll(missing), t.raw)
 	}
-
-	var b strings.Builder
-	for _, p := range t.parts {
-		if !p.isKey {
-			b.WriteString(p.text)
-			continue
-		}
-		if v, ok := call[p.text]; ok {
-			b.WriteString(v)
+	vals := make(map[string]string, len(t.keys))
+	for _, k := range t.keys {
+		if v, ok := call[k]; ok {
+			vals[k] = v
 		} else {
-			b.WriteString(static[p.text])
+			vals[k] = static[k]
 		}
 	}
-	return b.String(), nil
+	return vals, nil
+}
+
+// Render fills the template from static and call values with no constraints.
+func (t *Template) Render(static, call map[string]string) (string, error) {
+	return t.Format(static, call, nil, Rules{})
 }
 
 func quoteAll(keys []string) string {

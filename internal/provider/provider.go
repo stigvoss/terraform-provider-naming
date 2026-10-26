@@ -42,7 +42,7 @@ func (p *namingProvider) Configure(context.Context, provider.ConfigureRequest, *
 }
 
 func (p *namingProvider) Functions(context.Context) []func() function.Function {
-	return []func() function.Function{NewSchemeFunction, NewFormatFunction}
+	return []func() function.Function{NewSchemeFunction, NewFormatFunction, NewRulesFunction}
 }
 
 func (p *namingProvider) Resources(context.Context) []func() resource.Resource { return nil }
