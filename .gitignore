@@ -1,3 +1,5 @@
 terraform-provider-naming
 dist/
 *.test
+.terraform
+*.tfstate*
