@@ -50,12 +50,12 @@ locals {
     "{type}-{system}-{name}-{environment}-{region}-{discriminator}",
     {},
     {
-      type               = { max_length = 4 }
-      system      = { max_length = 3 }
-      name               = { on_too_long = "truncate" }
-      environment = { allowed = ["dev", "test", "prod"] }
-      region    = { max_length = 3 }
-      discriminator      = { max_length = 4 }
+      type          = { max_length = 4 }
+      system        = { max_length = 3 }
+      name          = { on_too_long = "truncate" }
+      environment   = { allowed = ["dev", "test", "prod"] }
+      region        = { max_length = 3 }
+      discriminator = { max_length = 4 }
     },
   )
 }
@@ -91,12 +91,12 @@ locals {
 provider::naming::format(
   local.naming.scheme,
   {
-    type               = "kv"
-    system      = "lis"
-    name               = "wharf"
-    environment = "dev"
-    region    = "weu"
-    discriminator      = "b73a"
+    type          = "kv"
+    system        = "lis"
+    name          = "wharf"
+    environment   = "dev"
+    region        = "weu"
+    discriminator = "b73a"
   },
   local.naming.rules.key_vault,
 )
@@ -105,12 +105,12 @@ provider::naming::format(
 provider::naming::format(
   local.naming.scheme,
   {
-    type               = "st"
-    system      = "lis"
-    name               = "datalake"
-    environment = "dev"
-    region    = "weu"
-    discriminator      = "b73a"
+    type          = "st"
+    system        = "lis"
+    name          = "datalake"
+    environment   = "dev"
+    region        = "weu"
+    discriminator = "b73a"
   },
   local.naming.rules.storage_account,
 )
