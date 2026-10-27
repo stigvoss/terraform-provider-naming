@@ -53,6 +53,13 @@ function argument. Share it across configurations via a module output.
   scheme's bound; rules need no `components` override for it.
 - Unknown inputs yield an unknown result; whatever is known is still validated.
 
+### Functions `with(scheme, values)` and `override(scheme, values)`
+- Return a new scheme (same shape as `scheme`'s result) with static values added (`with`) or
+  replaced (`override`). Constraints and rules are kept. `with` errors on an existing static key,
+  `override` on a key that is not static yet, both on a key not in the template, so intent is
+  explicit. New known values are checked with `CheckValue`; unknown ones wait until known.
+- Shared parsing of a scheme argument lives in `scheme_parse.go` (`parseScheme`).
+
 ### Function `format(config, variables)`
 - Picks the rules for the value of the `by` component (from the call, else from `static`), then
   runs the pipeline (`format.go`): merge static + call values -> check each against its component
@@ -62,7 +69,11 @@ function argument. Share it across configurations via a module output.
   component, not actual lengths, so the fitted component is identical across environments. An
   unbounded component counts at its actual length.
 - Errors: invalid template, unused `static` key, component or rule violation; call key overriding
-  `static`, extra call key, unresolved placeholder.
+  `static`, extra call key, unresolved placeholder. Messages follow one shape: `component "env"
+  (variable): "x" is not one of the allowed values ...`, name which limit applied and the rules key
+  (`in rules for "kv"`), and the function layer appends `(scheme "<template>")` (`withScheme`).
+  `ArgError` carries the argument a violation belongs to: a static value is reported against the
+  scheme, a call value against `variables`.
 - Rendering is simple `{key}` replacement, no templating engine. Remove patterns should match
   single characters; they are applied to each component and each literal segment separately.
 
