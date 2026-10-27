@@ -41,6 +41,7 @@ type ComponentSpec struct {
 
 // Rules are per-resource-type constraints applied to the whole name.
 type Rules struct {
+	name      string // the ruleset key these rules were selected by, for error messages
 	Lowercase bool
 	Remove    string // regular expression; matches are deleted from the name
 	MinLength *int

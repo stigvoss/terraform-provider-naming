@@ -114,7 +114,7 @@ func (f *formatFunction) Run(ctx context.Context, req function.RunRequest, resp 
 
 	name, err := tpl.Format(staticVals, call, comps, rules)
 	if err != nil {
-		resp.Error = function.NewArgumentFuncError(1, err.Error())
+		resp.Error = function.NewArgumentFuncError(argOf(err, 1), withScheme(err, template.ValueString()))
 		return
 	}
 	resp.Error = resp.Result.Set(ctx, name)
