@@ -38,7 +38,7 @@ func (t *Template) CheckSpecs(specs map[string]ComponentSpec) error {
 }
 
 // CheckValue validates one value against its spec and applies overflow.
-func CheckValue(key, value string, s ComponentSpec) (string, error) {
+func CheckValue(value string, s ComponentSpec) (string, error) {
 	if len(s.Allowed) > 0 {
 		found := false
 		for _, a := range s.Allowed {
@@ -48,19 +48,19 @@ func CheckValue(key, value string, s ComponentSpec) (string, error) {
 			}
 		}
 		if !found {
-			return "", fmt.Errorf("%q is %q, which is not one of the allowed values %s", key, value, quoteAll(s.Allowed))
+			return "", fmt.Errorf("%q is not one of the allowed values %s", value, quoteAll(s.Allowed))
 		}
 	}
 	if s.Pattern != "" {
 		if !mustRegexp(s.Pattern).MatchString(value) {
-			return "", fmt.Errorf("%q is %q, which does not match the pattern %q", key, value, s.Pattern)
+			return "", fmt.Errorf("%q does not match the pattern %q", value, s.Pattern)
 		}
 	}
 	if s.MinLength != nil && length(value) < *s.MinLength {
-		return "", fmt.Errorf("%q is %q (%d characters), the scheme requires at least %d", key, value, length(value), *s.MinLength)
+		return "", fmt.Errorf("%q is %s, below min_length %d", value, chars(length(value)), *s.MinLength)
 	}
 	if s.MaxLength != nil && length(value) > *s.MaxLength {
-		return truncate(key, value, value, *s.MaxLength, s)
+		return truncate(value, value, *s.MaxLength, fmt.Sprintf("max_length %d", *s.MaxLength), s)
 	}
 	return value, nil
 }
@@ -68,9 +68,9 @@ func CheckValue(key, value string, s ComponentSpec) (string, error) {
 // truncate shortens v to limit characters per the spec's overflow. orig is
 // the value the optional hash is computed from, so a trimmed component stays
 // the same regardless of the other components.
-func truncate(key, v, orig string, limit int, s ComponentSpec) (string, error) {
+func truncate(v, orig string, limit int, limitName string, s ComponentSpec) (string, error) {
 	if s.Overflow != overflowTruncate {
-		return "", fmt.Errorf("%q is %q (%d characters), the limit is %d", key, v, length(v), limit)
+		return "", fmt.Errorf("%q is %s, over %s", v, chars(length(v)), limitName)
 	}
 	if s.Hash > 0 {
 		sum := sha256.Sum256([]byte(orig))
@@ -88,36 +88,45 @@ func truncate(key, v, orig string, limit int, s ComponentSpec) (string, error) {
 // remove, shrink the fit component into its budget, render, check the total.
 func (t *Template) Format(static, call map[string]string, comps map[string]ComponentSpec, rules Rules) (string, error) {
 	if err := t.CheckSpecs(comps); err != nil {
-		return "", err
+		return "", &ArgError{Arg: 0, Err: err}
 	}
 	if err := rules.Validate(); err != nil {
-		return "", err
+		return "", &ArgError{Arg: 0, Err: fmt.Errorf("rules%s: %w", rules.label(), err)}
 	}
 	specs, err := t.effectiveSpecs(comps, rules)
 	if err != nil {
-		return "", err
+		return "", &ArgError{Arg: 0, Err: err}
 	}
 	if err := t.CheckStaticKeys(keysOf(static)); err != nil {
-		return "", err
+		return "", &ArgError{Arg: 0, Err: err}
 	}
 	vals, err := t.merge(static, call)
 	if err != nil {
-		return "", err
+		return "", &ArgError{Arg: 1, Err: err}
 	}
 	transform := rules.transformer()
+
+	// Violations are reported against the argument the value came from.
+	source := func(k string) (name string, arg int64) {
+		if _, ok := call[k]; ok {
+			return "variable", 1
+		}
+		return "static", 0
+	}
 
 	orig := map[string]string{}
 	for _, k := range t.keys {
 		orig[k] = vals[k]
-		v, err := CheckValue(k, vals[k], specs[k])
+		v, err := CheckValue(vals[k], specs[k])
 		if err != nil {
-			return "", err
+			src, arg := source(k)
+			return "", argErr(arg, "component %q (%s): %w", k, src, err)
 		}
 		vals[k] = transform(v)
 	}
 
 	if rules.Fit != "" {
-		if err := t.fit(vals, orig, specs, rules, transform); err != nil {
+		if err := t.fit(vals, orig, specs, rules, transform, source); err != nil {
 			return "", err
 		}
 	}
@@ -132,10 +141,10 @@ func (t *Template) Format(static, call map[string]string, comps map[string]Compo
 	}
 	out := b.String()
 	if rules.MaxLength != nil && length(out) > *rules.MaxLength {
-		return "", fmt.Errorf("name %q is %d characters, the limit is %d", out, length(out), *rules.MaxLength)
+		return "", argErr(1, "the name %q is %s, over max_length %d%s", out, chars(length(out)), *rules.MaxLength, rules.label())
 	}
 	if rules.MinLength != nil && length(out) < *rules.MinLength {
-		return "", fmt.Errorf("name %q is %d characters, the minimum is %d", out, length(out), *rules.MinLength)
+		return "", argErr(1, "the name %q is %s, below min_length %d%s", out, chars(length(out)), *rules.MinLength, rules.label())
 	}
 	return out, nil
 }
@@ -193,8 +202,8 @@ func (t *Template) fitLimit(specs map[string]ComponentSpec, rules Rules, transfo
 		floor = *spec.MinLength
 	}
 	if limit < floor {
-		return limit, floor, fmt.Errorf("no room for %q: the other components use %d of %d characters, leaving %d per occurrence but at least %d is needed",
-			rules.Fit, fixed, *rules.MaxLength, budget, floor)
+		return limit, floor, argErr(0, "no room for %q: the other components use %d of the %s allowed by max_length%s, leaving %d per occurrence but at least %d is needed",
+			rules.Fit, fixed, chars(*rules.MaxLength), rules.label(), budget, floor)
 	}
 	return limit, floor, nil
 }
@@ -203,16 +212,18 @@ func (t *Template) fitLimit(specs map[string]ComponentSpec, rules Rules, transfo
 // The budget is computed from the declared bounds of the other components,
 // not their actual lengths, so the fit component is trimmed identically in
 // every environment.
-func (t *Template) fit(vals, orig map[string]string, specs map[string]ComponentSpec, rules Rules, transform func(string) string) error {
+func (t *Template) fit(vals, orig map[string]string, specs map[string]ComponentSpec, rules Rules, transform func(string) string, source func(string) (string, int64)) error {
 	limit, _, err := t.fitLimit(specs, rules, transform, func(k string) int { return length(vals[k]) })
 	if err != nil {
 		return err
 	}
 	v := vals[rules.Fit]
 	if length(v) > limit {
-		short, err := truncate(rules.Fit, v, orig[rules.Fit], limit, specs[rules.Fit])
+		limitName := fmt.Sprintf("the %s left for it by fit under max_length %d%s", chars(limit), *rules.MaxLength, rules.label())
+		short, err := truncate(v, orig[rules.Fit], limit, limitName, specs[rules.Fit])
 		if err != nil {
-			return fmt.Errorf("%w (limit calculated from max_length %d)", err, *rules.MaxLength)
+			src, arg := source(rules.Fit)
+			return argErr(arg, "component %q (%s): %w", rules.Fit, src, err)
 		}
 		vals[rules.Fit] = short
 	}
@@ -294,7 +305,7 @@ func (t *Template) CheckRuleset(comps map[string]ComponentSpec, rs Ruleset) erro
 			return fmt.Errorf("rules for %q: %w", k, err)
 		}
 		specs, _ := t.effectiveSpecs(comps, rule)
-		if _, err := CheckValue(rs.By, k, specs[rs.By]); err != nil {
+		if _, err := CheckValue(k, specs[rs.By]); err != nil {
 			return fmt.Errorf("rules for %q: the key is not a valid %s: %w", k, rs.By, err)
 		}
 		// Check the budget the way format will see it, with the selector pinned.

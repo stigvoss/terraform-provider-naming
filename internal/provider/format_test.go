@@ -73,7 +73,7 @@ func TestFormatKeyVaultErrors(t *testing.T) {
 			s := kvScheme()
 			s["name"] = ComponentSpec{}
 			return s
-		}, kvRules, "the limit is 3"},
+		}, kvRules, "over the 3 characters left for it by fit"},
 		{"fit needs max_length", kvCall("dev", "wha"), kvScheme, func() Rules { r := kvRules(); r.MaxLength = nil; return r }, "fit requires max_length"},
 		{"fit not in template", kvCall("dev", "wha"), kvScheme, func() Rules { r := kvRules(); r.Fit = "nope"; return r }, "rules.fit"},
 	}
@@ -108,13 +108,13 @@ func TestFormatRules(t *testing.T) {
 			name:     "total too long without fit",
 			template: "{org}-{name}", static: map[string]string{"org": "acme"}, call: map[string]string{"name": "abcdefghij"},
 			rules:   Rules{MaxLength: ip(8)},
-			wantErr: "the limit is 8",
+			wantErr: "over max_length 8",
 		},
 		{
 			name:     "total too short",
 			template: "{name}", call: map[string]string{"name": "a"},
 			rules:   Rules{MinLength: ip(3)},
-			wantErr: "the minimum is 3",
+			wantErr: "below min_length 3",
 		},
 		{
 			name:     "component cap truncates",
@@ -146,7 +146,7 @@ func TestFormatRules(t *testing.T) {
 			name:     "min_length on component",
 			template: "{env}", call: map[string]string{"env": "d"},
 			comps:   map[string]ComponentSpec{"env": {MinLength: ip(2)}},
-			wantErr: "at least 2",
+			wantErr: "below min_length 2",
 		},
 		{
 			name:     "component spec for unknown key",
@@ -186,7 +186,7 @@ func TestFormatRules(t *testing.T) {
 }
 
 func sha2(s string, n int) string {
-	v, _ := truncate("x", strings.Repeat("a", n+1), s, n+1, ComponentSpec{Overflow: overflowTruncate, Hash: n})
+	v, _ := truncate(strings.Repeat("a", n+1), s, n+1, "limit", ComponentSpec{Overflow: overflowTruncate, Hash: n})
 	return v[1:]
 }
 

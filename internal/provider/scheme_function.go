@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/function"
@@ -111,7 +112,7 @@ func (f *schemeFunction) Run(ctx context.Context, req function.RunRequest, resp 
 		}
 		if !static.IsUnknown() {
 			if err := tpl.CheckStaticKeys(mapKeys(static)); err != nil {
-				resp.Error = function.NewArgumentFuncError(1, err.Error())
+				resp.Error = function.NewArgumentFuncError(1, withScheme(err, template.ValueString()))
 				return
 			}
 		}
@@ -128,26 +129,26 @@ func (f *schemeFunction) Run(ctx context.Context, req function.RunRequest, resp 
 	}
 	comps, err := ParseComponents(compsVal)
 	if err != nil {
-		resp.Error = function.NewArgumentFuncError(2, err.Error())
+		resp.Error = function.NewArgumentFuncError(2, withScheme(err, template.ValueString()))
 		return
 	}
 	if err := tpl.CheckSpecs(comps); err != nil {
-		resp.Error = function.NewArgumentFuncError(2, err.Error())
+		resp.Error = function.NewArgumentFuncError(2, withScheme(err, template.ValueString()))
 		return
 	}
 	for k, v := range staticVals {
-		if _, err := CheckValue(k, v, comps[k]); err != nil {
-			resp.Error = function.NewArgumentFuncError(1, "static "+err.Error())
+		if _, err := CheckValue(v, comps[k]); err != nil {
+			resp.Error = function.NewArgumentFuncError(1, withScheme(fmt.Errorf("component %q (static): %w", k, err), template.ValueString()))
 			return
 		}
 	}
 	ruleset, err := ParseRuleset(rulesVal)
 	if err != nil {
-		resp.Error = function.NewArgumentFuncError(3, err.Error())
+		resp.Error = function.NewArgumentFuncError(3, withScheme(err, template.ValueString()))
 		return
 	}
 	if err := tpl.CheckRuleset(comps, ruleset); err != nil {
-		resp.Error = function.NewArgumentFuncError(3, err.Error())
+		resp.Error = function.NewArgumentFuncError(3, withScheme(err, template.ValueString()))
 		return
 	}
 

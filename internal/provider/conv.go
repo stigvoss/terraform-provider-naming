@@ -409,6 +409,7 @@ func (rs Ruleset) For(value string) Rules {
 	if !ok {
 		return Rules{}
 	}
+	r.name = value
 	return rs.withSelector(r, value)
 }
 
