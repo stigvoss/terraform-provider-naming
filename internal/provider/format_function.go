@@ -59,23 +59,11 @@ func (f *formatFunction) Run(ctx context.Context, req function.RunRequest, resp 
 		resp.Error = resp.Result.Set(ctx, types.StringUnknown())
 		return
 	}
-	if obj.IsNull() {
-		resp.Error = function.NewArgumentFuncError(0, "config must not be null")
-		return
-	}
 	if vars.IsNull() {
 		resp.Error = function.NewArgumentFuncError(1, "variables must not be null")
 		return
 	}
-
-	cfg := obj.Attributes()
-	template, _ := cfg["template"].(types.String)
-	static, _ := cfg["static"].(types.Map)
-	if template.IsNull() || static.IsNull() {
-		resp.Error = function.NewArgumentFuncError(0, "config.template and config.static must not be null")
-		return
-	}
-	staticVals, ferr := stringMap(ctx, static, 0, "config.static")
+	ps, ferr := parseScheme(ctx, obj, 0)
 	if ferr != nil {
 		resp.Error = ferr
 		return
@@ -85,36 +73,21 @@ func (f *formatFunction) Run(ctx context.Context, req function.RunRequest, resp 
 		resp.Error = ferr
 		return
 	}
-	comps, err := ParseComponents(cfg["components"])
-	if err != nil {
-		resp.Error = function.NewArgumentFuncError(0, "config."+err.Error())
-		return
-	}
-	ruleset, err := ParseRuleset(cfg["rules"])
-	if err != nil {
-		resp.Error = function.NewArgumentFuncError(0, "config."+err.Error())
-		return
-	}
 
-	tpl, err := ParseTemplate(template.ValueString())
-	if err != nil {
-		resp.Error = function.NewArgumentFuncError(0, err.Error())
-		return
-	}
 	// The selecting component's value comes from the call, or from the static
 	// values when the scheme fixes it. A value with no entry has no extra rules.
 	var rules Rules
-	if ruleset.By != "" {
-		selector, ok := call[ruleset.By]
+	if ps.ruleset.By != "" {
+		selector, ok := call[ps.ruleset.By]
 		if !ok {
-			selector = staticVals[ruleset.By]
+			selector = ps.staticVals[ps.ruleset.By]
 		}
-		rules = ruleset.For(selector)
+		rules = ps.ruleset.For(selector)
 	}
 
-	name, err := tpl.Format(staticVals, call, comps, rules)
+	name, err := ps.tpl.Format(ps.staticVals, call, ps.comps, rules)
 	if err != nil {
-		resp.Error = function.NewArgumentFuncError(argOf(err, 1), withScheme(err, template.ValueString()))
+		resp.Error = function.NewArgumentFuncError(argOf(err, 1), withScheme(err, ps.template))
 		return
 	}
 	resp.Error = resp.Result.Set(ctx, name)

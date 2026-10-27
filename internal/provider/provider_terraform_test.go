@@ -232,3 +232,83 @@ output "variable_unknown" {
 		},
 	})
 }
+
+func TestTerraformWithAndOverride(t *testing.T) {
+	base := `
+locals {
+  base = provider::naming::scheme(
+    "{type}-{system}-{name}-{env}-{region}-{discriminator}",
+    { system = "wha", env = "dev" },
+    {
+      type          = { max_length = 4 }
+      name          = { overflow = "truncate" }
+      env           = { allowed = ["dev", "prod"] }
+      region        = { max_length = 3 }
+      discriminator = { max_length = 4 }
+    },
+    { by = "type", rules = { kv = { max_length = 24, fit = "name" } } },
+  )
+}
+`
+	resource.UnitTest(t, resource.TestCase{
+		TerraformVersionChecks:   []tfversion.TerraformVersionCheck{tfversion.SkipBelow(tfversion.Version1_8_0)},
+		ProtoV6ProviderFactories: testTFProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config:      base + `output "x" { value = provider::naming::with(local.base, { system = "other" }) }`,
+				ExpectError: regexp.MustCompile(`already\s+a\s+static\s+value[\s\S]*override\(\)`),
+			},
+			{
+				Config:      base + `output "x" { value = provider::naming::with(local.base, { nope = "x" }) }`,
+				ExpectError: regexp.MustCompile(`not\s+a\s+placeholder`),
+			},
+			{
+				Config:      base + `output "x" { value = provider::naming::with(local.base, { region = "europe" }) }`,
+				ExpectError: regexp.MustCompile(`component\s+"region"\s+\(static\)[\s\S]*over\s+max_length\s+3`),
+			},
+			{
+				Config:      base + `output "x" { value = provider::naming::override(local.base, { region = "weu" }) }`,
+				ExpectError: regexp.MustCompile(`not\s+a\s+static\s+value[\s\S]*with\(\)`),
+			},
+			{
+				Config:      base + `output "x" { value = provider::naming::override(local.base, { env = "staging" }) }`,
+				ExpectError: regexp.MustCompile(`not\s+one\s+of\s+the\s+allowed`),
+			},
+			{
+				// The last step must be valid: the test destroys with the last config.
+				Config: base + `
+locals {
+  own    = provider::naming::with(local.base, { region = "weu", discriminator = "b73a" })
+  shared = provider::naming::with(local.base, { region = "neu", discriminator = "c11d" })
+  prod   = provider::naming::override(local.own, { env = "prod" })
+}
+
+resource "terraform_data" "region" {
+  input = "weu"
+}
+
+output "own"    { value = provider::naming::format(local.own, { type = "kv", name = "wharf" }) }
+output "shared" { value = provider::naming::format(local.shared, { type = "rg", name = "net" }) }
+output "prod"   { value = provider::naming::format(local.prod, { type = "kv", name = "wharf" }) }
+output "base_unchanged" { value = local.base.static.env }
+
+# Unknown values are checked once they are known.
+output "late" {
+  value = provider::naming::format(
+    provider::naming::with(local.base, { region = terraform_data.region.output, discriminator = "b73a" }),
+    { type = "rg", name = "net" },
+  )
+}
+`,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckOutput("own", "kv-wha-wha-dev-weu-b73a"),
+					resource.TestCheckOutput("shared", "rg-wha-net-dev-neu-c11d"),
+					// The rules and constraints of the base are kept.
+					resource.TestCheckOutput("prod", "kv-wha-wha-prod-weu-b73a"),
+					resource.TestCheckOutput("base_unchanged", "dev"),
+					resource.TestCheckOutput("late", "rg-wha-net-dev-weu-b73a"),
+				),
+			},
+		},
+	})
+}
